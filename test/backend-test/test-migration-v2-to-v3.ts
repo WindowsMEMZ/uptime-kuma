@@ -4,7 +4,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import zlib from "node:zlib";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { io } from "socket.io-client";
 import BetterSqlite3 from "better-sqlite3";
@@ -14,6 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const fixturePath = path.join(__dirname, "../fixtures/v2-kuma.db.gz");
 const dataDir = path.join(__dirname, "../../data/test-migration-v2-upgrade");
+const serverDir = path.join(__dirname, "../../data/test-migration-v2-server");
 
 const username = "admin";
 
@@ -100,10 +101,33 @@ test("A v2.5.3 database still works after upgrading to v3 (#7944, #7946)", { tim
     let socket;
 
     try {
+        // Exercise the CommonJS production artifact; the tsx loader can hide adapter schema validation errors.
+        fs.rmSync(serverDir, { recursive: true, force: true });
+        fs.mkdirSync(path.join(serverDir, "extra"), { recursive: true });
+        const repoDir = path.join(__dirname, "../..");
+        for (const directory of ["server", "src", "db"]) {
+            fs.cpSync(path.join(repoDir, directory), path.join(serverDir, directory), { recursive: true });
+        }
+        fs.copyFileSync(path.join(repoDir, "package.json"), path.join(serverDir, "package.json"));
+        fs.copyFileSync(
+            path.join(repoDir, "extra/precompile-server.js"),
+            path.join(serverDir, "extra/precompile-server.js")
+        );
+        fs.symlinkSync(path.join(repoDir, "node_modules"), path.join(serverDir, "node_modules"), "junction");
+        fs.mkdirSync(path.join(serverDir, "dist"));
+        fs.writeFileSync(path.join(serverDir, "dist/index.html"), "<!doctype html><html></html>");
+        execFileSync(process.execPath, ["extra/precompile-server.js"], { cwd: serverDir });
+
         const port = await getFreePort();
-        child = spawn(process.execPath, ["--import=tsx", "server/server.js"], {
-            cwd: path.join(__dirname, "../.."),
-            env: { ...process.env, DATA_DIR: dataDir, UPTIME_KUMA_PORT: String(port), UPTIME_KUMA_DB_TYPE: "sqlite" },
+        child = spawn(process.execPath, ["server/server.js"], {
+            cwd: serverDir,
+            env: {
+                ...process.env,
+                NODE_ENV: "production",
+                DATA_DIR: dataDir,
+                UPTIME_KUMA_PORT: String(port),
+                UPTIME_KUMA_DB_TYPE: "sqlite",
+            },
             stdio: ["ignore", "pipe", "pipe"],
         });
         let serverOutput = "";
@@ -113,8 +137,13 @@ test("A v2.5.3 database still works after upgrading to v3 (#7944, #7946)", { tim
         const baseUrl = `http://127.0.0.1:${port}`;
         await waitForServer(`${baseUrl}/api/entry-page`);
 
+        const authHealth = await fetch(`${baseUrl}/api/auth/ok`, { signal: AbortSignal.timeout(5000) });
+        assert.strictEqual(authHealth.status, 200, serverOutput);
+        assert.ok(!serverOutput.includes("Database schema mismatch"), serverOutput);
+
         // Log in. The legacy v2 user is migrated to better-auth on the first sign-in.
         const login = await fetch(`${baseUrl}/api/auth/sign-in/username`, {
+            signal: AbortSignal.timeout(10000),
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ username, password }),
@@ -223,6 +252,7 @@ test("A v2.5.3 database still works after upgrading to v3 (#7944, #7946)", { tim
         await new Promise((resolve) => setTimeout(resolve, 500));
         try {
             fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+            fs.rmSync(serverDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
         } catch (e) {
             // Windows/Dropbox can keep a handle on the directory for a moment; the next run cleans it up
         }

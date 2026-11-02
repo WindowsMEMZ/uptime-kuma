@@ -323,6 +323,7 @@ app.use(function (req, res, next) {
                 throw new Error("Unable to copy snapshot file.");
             }
             await Database.connect();
+            await Database.patch();
 
             response.send("Snapshot restored.");
         });

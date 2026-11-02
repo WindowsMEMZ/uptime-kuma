@@ -20,14 +20,14 @@ const expiredMsg = "Setup has expired. Please restart the server to try again.";
  */
 export async function createBetterAuthRouter() {
     const betterAuthRouter = express.Router();
-    betterAuthRouter.all("/api/auth/*", async (req, res) => {
+    betterAuthRouter.all("/api/auth/*", (req, res, next) => {
         allowDevOrigin(req, res);
 
         if (shouldSecureCookies(req)) {
             secureResponseCookies(res);
         }
 
-        return toNodeHandler(auth())(req, res);
+        return toNodeHandler(auth())(req, res).catch(next);
     });
 
     // First Setup

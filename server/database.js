@@ -454,9 +454,6 @@ class Database {
         } else if (dbConfig.type.endsWith("mariadb")) {
             await this.initMariaDB();
         }
-
-        // Also connect better-auth
-        auth(true);
     }
 
     /**
@@ -547,6 +544,10 @@ class Database {
                 throw e;
             }
         }
+
+        // Better Auth caches schema validation, so initialize it only after migrations finish.
+        const context = await auth(true).$context;
+        await context.checkSchema?.();
     }
 
     /**
