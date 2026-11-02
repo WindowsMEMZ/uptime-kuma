@@ -653,6 +653,7 @@ app.use(function (req, res, next) {
                 bean.manual_status = monitor.manual_status;
 
                 // Known config keys only, so a payload never replaces the whole config
+                const previousHeartbeatWindow = bean.getConfigValue("statusPageHeartbeatWindow", 0);
                 bean.applyClientConfig(monitor.config);
 
                 bean.sshUsername = monitor.sshUsername;
@@ -673,6 +674,10 @@ app.use(function (req, res, next) {
                 bean.validate();
 
                 await R.store(bean);
+
+                if (bean.getConfigValue("statusPageHeartbeatWindow", 0) !== previousHeartbeatWindow) {
+                    apicache.clear();
+                }
 
                 if (removeGroupChildren) {
                     await Monitor.unlinkAllChildren(monitor.id);

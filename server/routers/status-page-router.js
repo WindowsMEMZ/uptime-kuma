@@ -7,6 +7,8 @@ const { R } = require("redbean-node");
 const { badgeConstants } = require("../../src/util");
 const { makeBadge } = require("badge-maker");
 const { UptimeCalculator } = require("../uptime-calculator");
+const { getStatusPageHeartbeatWindow } = require("../../src/status-page-heartbeat");
+const { getStatusPageHeartbeatBuckets } = require("../status-page-heartbeat");
 
 let router = express.Router();
 
@@ -67,22 +69,25 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
     try {
         let heartbeatList = {};
         let uptimeList = {};
+        let heartbeatBarList = {};
 
         let slug = request.params.slug;
         slug = slug.toLowerCase();
         let statusPageID = await StatusPage.slugToID(slug);
 
-        let monitorIDList = await R.getCol(
+        let monitors = await R.getAll(
             `
-            SELECT monitor_group.monitor_id FROM monitor_group, \`group\`
+            SELECT DISTINCT monitor.id, monitor.config FROM monitor_group, \`group\`, monitor
             WHERE monitor_group.group_id = \`group\`.id
+            AND monitor_group.monitor_id = monitor.id
             AND public = 1
             AND \`group\`.status_page_id = ?
         `,
             [statusPageID]
         );
 
-        for (let monitorID of monitorIDList) {
+        for (let monitor of monitors) {
+            const monitorID = monitor.id;
             let list = await R.getAll(
                 `
                     SELECT * FROM heartbeat
@@ -96,6 +101,11 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
             list = R.convertToBeans("heartbeat", list);
             heartbeatList[monitorID] = list.reverse().map((row) => row.toPublicJSON());
 
+            const windowMinutes = getStatusPageHeartbeatWindow(monitor.config);
+            if (windowMinutes > 0) {
+                heartbeatBarList[monitorID] = await getStatusPageHeartbeatBuckets(monitorID, windowMinutes);
+            }
+
             const uptimeCalculator = await UptimeCalculator.getUptimeCalculator(monitorID);
             await uptimeCalculator.ensureHistoryLoaded();
             uptimeList[`${monitorID}_24`] = uptimeCalculator.get24Hour().uptime;
@@ -104,6 +114,7 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
         response.json({
             heartbeatList,
             uptimeList,
+            heartbeatBarList,
         });
     } catch (error) {
         sendHttpError(response, error.message);

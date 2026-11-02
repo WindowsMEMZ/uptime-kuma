@@ -43,6 +43,7 @@ import { claimHeartbeatHistory, releaseHeartbeatHistory, shouldRequestHistory } 
 import dayjs from "dayjs";
 import { DOWN, UP, PENDING, MAINTENANCE } from "../util.ts";
 import Tooltip from "./Tooltip.vue";
+import { fitHeartbeatBuckets, MAX_HEARTBEAT_WINDOW_MINUTES } from "../status-page-heartbeat";
 
 export default {
     components: {
@@ -64,8 +65,8 @@ export default {
             type: Array,
             default: null,
         },
-        /** Heartbeat bar days */
-        heartbeatBarDays: {
+        /** Public heartbeat window in minutes; zero keeps individual checks. */
+        heartbeatWindow: {
             type: Number,
             default: 0,
         },
@@ -91,11 +92,11 @@ export default {
     },
     computed: {
         /**
-         * Normalized heartbeatBarDays as a number
-         * @returns {number} Number of days for heartbeat bar
+         * Normalize the configured public window.
+         * @returns {number} Window in minutes
          */
-        normalizedHeartbeatBarDays() {
-            return Math.max(0, Math.min(365, Math.floor(this.heartbeatBarDays || 0)));
+        normalizedHeartbeatWindow() {
+            return Math.max(0, Math.min(MAX_HEARTBEAT_WINDOW_MINUTES, Math.floor(this.heartbeatWindow || 0)));
         },
 
         /**
@@ -119,8 +120,7 @@ export default {
                 return 0;
             }
 
-            // For configured ranges, no padding needed since we show all beats
-            if (this.normalizedHeartbeatBarDays > 0) {
+            if (this.normalizedHeartbeatWindow > 0) {
                 return 0;
             }
 
@@ -142,13 +142,10 @@ export default {
                 return [];
             }
 
-            // If heartbeat days is configured (not auto), data is already aggregated from server
-            if (this.normalizedHeartbeatBarDays > 0 && this.beatList.length > 0) {
-                // Show all beats from server - they are already properly aggregated
-                return this.beatList;
+            if (this.normalizedHeartbeatWindow > 0) {
+                return fitHeartbeatBuckets(this.beatList, this.maxBeat);
             }
 
-            // Original logic for auto mode (heartbeatBarDays = 0)
             let placeholders = [];
 
             // Handle case where maxBeat is -1 (no limit)
@@ -184,7 +181,7 @@ export default {
         },
 
         barStyle() {
-            if (this.move && this.shortBeatList.length > this.maxBeat) {
+            if (this.normalizedHeartbeatWindow === 0 && this.move && this.shortBeatList.length > this.maxBeat) {
                 let width = -(this.beatWidth + this.beatHoverAreaPadding * 2);
 
                 return {
@@ -226,11 +223,12 @@ export default {
          * @returns {string} The time elapsed in minutes or hours.
          */
         timeSinceFirstBeat() {
-            if (this.normalizedHeartbeatBarDays === 1) {
-                return this.normalizedHeartbeatBarDays * 24 + "h";
-            }
-            if (this.normalizedHeartbeatBarDays >= 2) {
-                return this.normalizedHeartbeatBarDays + "d";
+            const minutesInWindow = this.normalizedHeartbeatWindow;
+            if (minutesInWindow > 0) {
+                if (minutesInWindow % 1440 === 0) {
+                    return minutesInWindow / 1440 + "d";
+                }
+                return minutesInWindow % 60 === 0 ? minutesInWindow / 60 + "h" : minutesInWindow + "m";
             }
 
             // Need to calculate from actual data
@@ -245,7 +243,7 @@ export default {
          */
         timeSinceLastBeat() {
             const lastValidBeat = this.shortBeatList.at(-1);
-            const seconds = dayjs().diff(dayjs.utc(lastValidBeat?.time), "seconds");
+            const seconds = dayjs().diff(dayjs.utc(lastValidBeat?.endTime || lastValidBeat?.time), "seconds");
 
             let tolerance = 60 * 2; // default for when monitorList not available
             if (this.$root.monitorList[this.monitorId] != null) {
@@ -287,9 +285,13 @@ export default {
                 return "Heartbeat history: No data";
             }
 
-            const validBeats = this.shortBeatList.filter((b) => b !== 0 && b !== null);
+            const validBeats = this.shortBeatList.filter((b) => b && b.status != null);
             const upCount = validBeats.filter((b) => Number(b.status) === UP).length;
             const downCount = validBeats.filter((b) => Number(b.status) === DOWN).length;
+            const pendingCount = validBeats.filter((b) => Number(b.status) === PENDING).length;
+            if (this.normalizedHeartbeatWindow > 0) {
+                return `Heartbeat history: ${validBeats.length} intervals, ${upCount} up, ${downCount} down, ${pendingCount} mixed`;
+            }
 
             return `Heartbeat history: ${validBeats.length} checks, ${upCount} up, ${downCount} down`;
         },
@@ -419,25 +421,10 @@ export default {
          */
         resize() {
             if (this.$refs.wrap) {
-                const newMaxBeat = Math.floor(
-                    this.$refs.wrap.clientWidth / (this.beatWidth + this.beatHoverAreaPadding * 2)
+                this.maxBeat = Math.max(
+                    1,
+                    Math.floor(this.$refs.wrap.clientWidth / (this.beatWidth + this.beatHoverAreaPadding * 2))
                 );
-
-                // If maxBeat changed and we're in configured days mode, notify parent to reload data
-                if (newMaxBeat !== this.maxBeat && this.normalizedHeartbeatBarDays > 0) {
-                    this.maxBeat = newMaxBeat;
-
-                    // Find the closest parent with reloadHeartbeatData method (StatusPage)
-                    let parent = this.$parent;
-                    while (parent && !parent.reloadHeartbeatData) {
-                        parent = parent.$parent;
-                    }
-                    if (parent && parent.reloadHeartbeatData) {
-                        parent.reloadHeartbeatData(newMaxBeat);
-                    }
-                } else {
-                    this.maxBeat = newMaxBeat;
-                }
             }
         },
 

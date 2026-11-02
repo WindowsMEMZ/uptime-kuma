@@ -1,5 +1,7 @@
 import { expect, test } from "../fixtures";
 import { login, restoreSqliteSnapshot } from "../util-test";
+import BetterSqlite3 from "better-sqlite3";
+import dayjs from "dayjs";
 
 test.beforeEach(async ({ page }) => {
     await restoreSqliteSnapshot(page);
@@ -66,6 +68,104 @@ async function addStatusPageWithMonitor(page, name, slug, monitorName) {
 }
 
 test.describe("Public status page", () => {
+    test("saves a per-monitor window and renders aggregated history for visitors", async ({ page }) => {
+        await addPushMonitor(page, "Window Monitor");
+        const monitorID = Number(page.url().split("/").pop());
+        await addStatusPageWithMonitor(page, "Window Demo", "window-demo", "Window Monitor");
+
+        // Prime both public caches before changing the monitor's window.
+        await page.request.get("/api/status-page/window-demo");
+        await page.request.get("/api/status-page/heartbeat/window-demo");
+        await page.goto(`/edit/${monitorID}`);
+        const windowInput = page.getByTestId("status-page-heartbeat-window");
+        await expect(windowInput).toHaveValue("0");
+        await windowInput.fill("1440");
+
+        const db = new BetterSqlite3("data/playwright-test/kuma.db");
+        try {
+            const now = dayjs();
+            const insert = db.prepare(
+                "INSERT INTO heartbeat (monitor_id, status, time, important) VALUES (?, ?, ?, 0)"
+            );
+            db.prepare("DELETE FROM heartbeat WHERE monitor_id = ?").run(monitorID);
+            for (const [hoursAgo, status] of [
+                [21, 1],
+                [18, 0],
+                [12, 0],
+                [12.001, 1],
+                [6, 3],
+                [0.05, 0],
+                [0.01, 1],
+            ]) {
+                insert.run(
+                    monitorID,
+                    status,
+                    now
+                        .subtract(hoursAgo * 3600, "seconds")
+                        .toISOString()
+                        .replace("T", " ")
+                        .replace("Z", "")
+                );
+            }
+        } finally {
+            db.close();
+        }
+
+        await page.getByTestId("save-button").click();
+        await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+        await page.goto(`/edit/${monitorID}`);
+        await expect(windowInput).toHaveValue("1440");
+
+        await page.context().clearCookies();
+        const polling = page.waitForResponse((response) =>
+            response.url().endsWith("/api/status-page/heartbeat/window-demo")
+        );
+        await page.goto("/status/window-demo");
+        const response = await polling;
+        expect(response.status()).toBe(200);
+        const { heartbeatList, heartbeatBarList } = await response.json();
+        const buckets = heartbeatBarList[monitorID];
+        expect(buckets).toHaveLength(100);
+        expect(buckets.map((bucket) => bucket.status)).toEqual(expect.arrayContaining([0, 1, 2, 3, null]));
+        expect(heartbeatList[monitorID].at(-1).status).toBe(1);
+        expect(buckets.at(-1).status).toBe(2);
+        await expect(page.getByText("All Systems Operational")).toBeVisible();
+        await expect(page.locator(".word").first()).toContainText("1d");
+
+        const canvas = page.locator("canvas.heartbeat-canvas").first();
+        await expect(canvas).toBeVisible();
+        // Inspect the rendered canvas colors, rather than Vue's internal state.
+        const colors = await canvas.evaluate((element) => {
+            const context = element.getContext("2d");
+            const pixels = context.getImageData(0, Math.floor(element.height / 2), element.width, 1).data;
+            const painted = new Set();
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i + 3] === 255) {
+                    painted.add(`rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`);
+                }
+            }
+            const root = getComputedStyle(document.documentElement);
+            const expected = ["--bs-primary", "--bs-danger", "--bs-warning"].map((name) => {
+                context.fillStyle = root.getPropertyValue(name).trim();
+                context.fillRect(0, 0, 1, 1);
+                const value = context.getImageData(0, 0, 1, 1).data;
+                return `rgb(${value[0]}, ${value[1]}, ${value[2]})`;
+            });
+            return { painted: [...painted], expected };
+        });
+        expect(colors.painted).toEqual(expect.arrayContaining(colors.expected));
+        const bounds = await canvas.boundingBox();
+        await page.mouse.move(bounds.x + bounds.width - 5, bounds.y + bounds.height / 2);
+        await expect(page.locator(".tooltip-status")).toHaveText("Partial outage");
+        await expect(page.locator(".tooltip-message")).toContainText("failed");
+
+        await page.setViewportSize({ width: 900, height: 800 });
+        await expect(page.locator(".word").first()).toContainText("1d");
+        await expect(canvas).toHaveAttribute("aria-label", /up, [1-9]\d* down/);
+        await page.setViewportSize({ width: 390, height: 800 });
+        await expect(canvas).toBeVisible();
+    });
+
     test("shows a published monitor to logged-out visitors", async ({ page }) => {
         const monitorID = await addHttpMonitor(page, "Public Monitor");
         await addStatusPageWithMonitor(page, "Public Demo", "public-demo", "Public Monitor");
@@ -107,7 +207,7 @@ test.describe("Public status page", () => {
         await page.context().clearCookies();
         await page.goto("./status/maintenance-demo");
 
-        await expect(page.locator(".bg-maintenance")).toContainText("Planned Window");
+        await expect(page.getByRole("alert").filter({ hasText: "Planned Window" })).toBeVisible();
         await expect(page.getByTestId("monitor-name")).toContainText("Maintenance Monitor");
     });
 });

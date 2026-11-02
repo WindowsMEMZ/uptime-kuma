@@ -14,6 +14,15 @@
                         {{ statusText }}
                     </div>
                     <div class="tooltip-time">{{ timeText }}</div>
+                    <div v-if="content.endTime" class="tooltip-message">
+                        {{
+                            $t("heartbeatBucketCounts", {
+                                up: content.upCount,
+                                down: content.downCount,
+                                maintenance: content.maintenanceCount,
+                            })
+                        }}
+                    </div>
                     <div v-if="content?.msg" class="tooltip-message">{{ content.msg }}</div>
                 </slot>
             </div>
@@ -74,7 +83,7 @@ export default {
                 case UP:
                     return this.$t("Up");
                 case PENDING:
-                    return this.$t("Pending");
+                    return this.$t(this.content.endTime ? "Partial outage" : "Pending");
                 case MAINTENANCE:
                     return this.$t("Maintenance");
                 default:
@@ -105,7 +114,8 @@ export default {
             if (!this.content || this.content === 0) {
                 return "";
             }
-            return this.$root.datetime(this.content.time);
+            const start = this.$root.datetime(this.content.time);
+            return this.content.endTime ? `${start} – ${this.$root.datetime(this.content.endTime)}` : start;
         },
     },
 };

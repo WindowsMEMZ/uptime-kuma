@@ -1777,5 +1777,9 @@
     "msGraphMailbox": "发件人邮箱",
     "msGraphTenantIdDescription": "租户 ID，或者该租户的任一域名（例如 contoso.onmicrosoft.com）。",
     "Tenant ID": "租户 ID",
-    "Microsoft Graph Email": "电子邮件 (Microsoft Graph)"
+    "Microsoft Graph Email": "电子邮件 (Microsoft Graph)",
+    "Status Page Heartbeat Window": "状态页心跳时间窗口",
+    "statusPageHeartbeatWindowDescription": "此监控项在公开状态页显示的时间窗口，单位为分钟，最长 365 天。设为 0 则自动调整。全通过显示绿色，全失败（含重试）显示红色，有成功也有失败显示黄色，无数据为灰色。维护期间不计入检测。较长窗口会保留更多心跳记录并占用更多存储空间，仍受全局数据保留设置限制。已删除的历史记录无法恢复。",
+    "Partial outage": "部分故障",
+    "heartbeatBucketCounts": "{up} 次通过，{down} 次失败，{maintenance} 次维护"
 }

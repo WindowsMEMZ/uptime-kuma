@@ -22,6 +22,20 @@ function createMonitor(config) {
 }
 
 describe("monitorConfigSchema", () => {
+    test("validates the public heartbeat window", () => {
+        for (const value of [0, 1, 90, 525600]) {
+            assert.strictEqual(
+                monitorConfigSchema.parse({ statusPageHeartbeatWindow: value }).statusPageHeartbeatWindow,
+                value
+            );
+        }
+        for (const value of [-1, 1.5, 525601, "60", null]) {
+            assert.throws(
+                () => monitorConfigSchema.parse({ statusPageHeartbeatWindow: value }),
+                /statusPageHeartbeatWindow/
+            );
+        }
+    });
     test("strips keys a client may not write", () => {
         assert.deepStrictEqual(monitorConfigSchema.parse({ systemServiceName: "nginx", injected: 1 }), {
             systemServiceName: "nginx",
@@ -66,6 +80,15 @@ describe("Monitor.setConfigValue()", () => {
 });
 
 describe("Monitor.applyClientConfig()", () => {
+    test("saves and resets the heartbeat window without overwriting other config", async () => {
+        const monitor = createMonitor({ server_key: 1 });
+        monitor.applyClientConfig({ statusPageHeartbeatWindow: 1440 });
+        assert.deepStrictEqual(monitor.getConfig(), { server_key: 1, statusPageHeartbeatWindow: 1440 });
+        assert.strictEqual((await monitor.toPublicJSON()).statusPageHeartbeatWindow, 1440);
+        assert.strictEqual((await monitor.toPublicJSON()).config, undefined);
+        monitor.applyClientConfig({ statusPageHeartbeatWindow: 0 });
+        assert.deepStrictEqual(monitor.getConfig(), { server_key: 1, statusPageHeartbeatWindow: 0 });
+    });
     test("writes a known key one at a time", () => {
         const monitor = createMonitor({});
 

@@ -494,6 +494,7 @@
                     :show-tags="config.showTags"
                     :show-certificate-expiry="config.showCertificateExpiry"
                     :show-only-last-heartbeat="config.showOnlyLastHeartbeat"
+                    :heartbeat-bar-list="heartbeatBarList"
                 />
             </div>
 
@@ -702,6 +703,7 @@ export default {
             imgDataUrl: "/icon.svg",
             loadedTheme: false,
             loadedData: false,
+            heartbeatBarList: {},
             baseURL: "",
             clickedEditButton: false,
             maintenanceList: [],
@@ -1071,22 +1073,26 @@ export default {
             // If editMode, it will use the data from websocket.
             if (!this.editMode) {
                 axios.get("/api/status-page/heartbeat/" + this.slug).then((res) => {
-                    const { heartbeatList, uptimeList } = res.data;
+                    const { heartbeatList, uptimeList, heartbeatBarList } = res.data;
 
                     this.$root.heartbeatList = heartbeatList;
                     this.$root.uptimeList = uptimeList;
+                    this.heartbeatBarList = heartbeatBarList || {};
 
                     const heartbeatIds = Object.keys(heartbeatList);
+                    const latestHeartbeatList = {};
                     const downMonitors = heartbeatIds.reduce((downMonitorsAmount, currentId) => {
                         const monitorHeartbeats = heartbeatList[currentId];
                         const lastHeartbeat = monitorHeartbeats.at(-1);
 
                         if (lastHeartbeat) {
+                            latestHeartbeatList[currentId] = lastHeartbeat;
                             return lastHeartbeat.status === 0 ? downMonitorsAmount + 1 : downMonitorsAmount;
                         } else {
                             return downMonitorsAmount;
                         }
                     }, 0);
+                    this.$root.lastHeartbeatList = latestHeartbeatList;
 
                     favicon.badge(downMonitors);
 

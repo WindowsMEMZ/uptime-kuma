@@ -116,7 +116,20 @@
                                             </div>
                                         </div>
                                         <div :key="$root.userHeartbeatBar" class="col-3 col-xl-6">
-                                            <HeartbeatBar size="mid" :monitor-id="monitor.element.id" />
+                                            <HeartbeatBar
+                                                size="mid"
+                                                :monitor-id="monitor.element.id"
+                                                :heartbeat-list="
+                                                    editMode
+                                                        ? null
+                                                        : heartbeatBarList[monitor.element.id] ||
+                                                          $root.heartbeatList[monitor.element.id] ||
+                                                          []
+                                                "
+                                                :heartbeat-window="
+                                                    editMode ? 0 : monitor.element.statusPageHeartbeatWindow || 0
+                                                "
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -148,6 +161,11 @@ export default {
         Status,
     },
     props: {
+        /** Aggregated heartbeat history for monitors with a configured window. */
+        heartbeatBarList: {
+            type: Object,
+            default: () => ({}),
+        },
         /** Are we in edit mode? */
         editMode: {
             type: Boolean,

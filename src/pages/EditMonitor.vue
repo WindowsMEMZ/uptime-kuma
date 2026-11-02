@@ -1715,6 +1715,24 @@
 
                             <h2 v-if="monitor.type !== 'push'" class="mt-5 mb-2">{{ $t("Advanced") }}</h2>
 
+                            <div v-if="monitor.config" class="my-3">
+                                <label for="status-page-heartbeat-window" class="form-label">
+                                    {{ $t("Status Page Heartbeat Window") }} ({{ $t("Minutes") }})
+                                </label>
+                                <input
+                                    id="status-page-heartbeat-window"
+                                    v-model.number="monitor.config.statusPageHeartbeatWindow"
+                                    type="number"
+                                    class="form-control"
+                                    min="0"
+                                    max="525600"
+                                    step="1"
+                                    required
+                                    data-testid="status-page-heartbeat-window"
+                                />
+                                <div class="form-text">{{ $t("statusPageHeartbeatWindowDescription") }}</div>
+                            </div>
+
                             <div
                                 v-if="
                                     monitor.type === 'http' ||
@@ -3364,7 +3382,7 @@ const monitorDefaults = {
     ntpStratumThreshold: 5,
     ntpTimeOffsetThreshold: 1000,
     ntpRootDispersionThreshold: 500,
-    config: {},
+    config: { statusPageHeartbeatWindow: 0 },
 };
 
 export default {
@@ -4061,6 +4079,7 @@ message HealthCheckResponse {
             if (this.isAdd) {
                 this.monitor = {
                     ...monitorDefaults,
+                    config: { ...monitorDefaults.config },
                     ping_count: 3,
                     ping_numeric: true,
                     packetSize: 56,
@@ -4091,6 +4110,7 @@ message HealthCheckResponse {
                         }
 
                         this.monitor = res.monitor;
+                        this.monitor.config.statusPageHeartbeatWindow ??= 0;
 
                         if (this.isClone) {
                             /*

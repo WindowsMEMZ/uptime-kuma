@@ -14,6 +14,7 @@ const { SimpleMigrationServer } = require("./utils/simple-migration-server");
 const BetterSqlite3Database = require("better-sqlite3");
 const KumaColumnCompiler = require("./utils/knex/lib/dialects/mysql2/schema/mysql2-columncompiler");
 const SqlString = require("sqlstring");
+const { getStatusPageHeartbeatWindow } = require("../src/status-page-heartbeat");
 const { auth } = require("./better-auth");
 
 /**
@@ -1040,12 +1041,12 @@ class Database {
     }
 
     /**
-     * Remove all non-important heartbeats from heartbeat table, keep last 24-hour or {KEEP_LAST_ROWS} rows for each monitor
+     * Keep at least 24 hours, each monitor's public heartbeat window, and its latest 100 rows.
      * @param {boolean} detailedLog Log detailed information
      * @returns {Promise<void>}
      */
     static async clearHeartbeatData(detailedLog = false) {
-        let monitors = await R.getAll("SELECT id FROM monitor");
+        let monitors = await R.getAll("SELECT id, config FROM monitor");
         const sqlHourOffset = Database.sqlHourOffset();
 
         for (let monitor of monitors) {
@@ -1068,7 +1069,7 @@ class Database {
                     )  AS limited_ids
                 )
             `,
-                [monitor.id, -24, monitor.id, 100]
+                [monitor.id, -Math.max(24, Math.ceil(getStatusPageHeartbeatWindow(monitor.config) / 60)), monitor.id, 100]
             );
         }
     }
