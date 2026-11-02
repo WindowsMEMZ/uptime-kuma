@@ -80,6 +80,7 @@ export default {
             move: false,
             maxBeat: -1,
             availableWidth: 0,
+            resizeObserver: null,
             // Tooltip data
             tooltipVisible: false,
             tooltipContent: null,
@@ -332,6 +333,12 @@ export default {
             });
         },
 
+        canvasWidth() {
+            this.$nextTick(() => {
+                this.drawCanvas();
+            });
+        },
+
         "$root.theme"() {
             // Redraw canvas when theme changes (nextTick ensures .dark class is applied)
             this.$nextTick(() => {
@@ -345,6 +352,7 @@ export default {
     },
     unmounted() {
         window.removeEventListener("resize", this.resize);
+        this.resizeObserver?.disconnect();
         // Clean up tooltip timeout
         if (this.tooltipTimeoutId) {
             clearTimeout(this.tooltipTimeoutId);
@@ -379,6 +387,8 @@ export default {
         }
 
         window.addEventListener("resize", this.resize);
+        this.resizeObserver = new ResizeObserver(this.resize);
+        this.resizeObserver.observe(this.$refs.wrap);
         this.resize();
 
         // Initial canvas draw

@@ -186,6 +186,29 @@ test.describe("Public status page", () => {
         await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets[0].label);
         await page.mouse.move(bounds.x + (bounds.width * 59) / 60, bounds.y + bounds.height / 2);
         await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets.at(-1).label);
+        for (const width of [1280, 390, 900]) {
+            await page.setViewportSize({ width, height: 800 });
+            await expect
+                .poll(async () =>
+                    canvas.evaluate((element) => {
+                        const wrap = element.closest(".wrap");
+                        const styles = getComputedStyle(wrap);
+                        const expected =
+                            wrap.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+                        return Math.abs(element.getBoundingClientRect().width - expected);
+                    })
+                )
+                .toBeLessThan(1);
+            await expect
+                .poll(async () =>
+                    canvas.evaluate((element) => {
+                        const pixels = element.getContext("2d").getImageData(0, 0, element.width, element.height).data;
+                        return pixels.some((value, index) => index % 4 === 3 && value > 0);
+                    })
+                )
+                .toBe(true);
+            await expect(canvas).toHaveAttribute("aria-label", /^Heartbeat history: 30 intervals/);
+        }
     });
 
     for (const windowMinutes of [0, 1440]) {
