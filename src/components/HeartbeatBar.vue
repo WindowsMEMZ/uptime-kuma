@@ -98,10 +98,12 @@ export default {
         },
 
         beatFullWidth() {
+            const naturalWidth = this.beatWidth + this.beatHoverAreaPadding * 2;
             if (this.calendarBuckets && this.availableWidth > 0) {
-                return this.availableWidth / this.beatList.length;
+                const available = this.availableWidth / this.beatList.length;
+                return this.$root.isMobile ? available : Math.min(naturalWidth, available);
             }
-            return this.beatWidth + this.beatHoverAreaPadding * 2;
+            return naturalWidth;
         },
 
         /**
@@ -194,6 +196,9 @@ export default {
         },
 
         barStyle() {
+            if (this.calendarBuckets) {
+                return { width: this.canvasWidth + "px", "margin-left": "auto" };
+            }
             if (this.normalizedHeartbeatWindow === 0 && this.move && this.shortBeatList.length > this.maxBeat) {
                 let width = -(this.beatWidth + this.beatHoverAreaPadding * 2);
 
@@ -226,6 +231,9 @@ export default {
          * @returns {object} The style object containing the CSS properties for positioning the time element.
          */
         timeStyle() {
+            if (this.calendarBuckets) {
+                return { width: this.canvasWidth + "px", "margin-left": "auto" };
+            }
             return {
                 "margin-left": this.numPadding * (this.beatWidth + this.beatHoverAreaPadding * 2) + "px",
             };
@@ -627,7 +635,9 @@ export default {
 
             // Draw each beat
             this.shortBeatList.forEach((beat, index) => {
-                const baseWidth = this.calendarBuckets ? Math.max(0.5, beatFullWidth * 0.65) : this.beatWidth;
+                const baseWidth = this.calendarBuckets
+                    ? Math.max(0.5, Math.min(this.$root.isMobile ? Infinity : this.beatWidth, beatFullWidth * 0.65))
+                    : this.beatWidth;
                 const x = index * beatFullWidth + (beatFullWidth - baseWidth) / 2;
                 const isHovered = index === this.hoveredBeatIndex;
 

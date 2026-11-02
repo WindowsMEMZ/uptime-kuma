@@ -186,15 +186,16 @@ test.describe("Public status page", () => {
         await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets[0].label);
         await page.mouse.move(bounds.x + (bounds.width * 59) / 60, bounds.y + bounds.height / 2);
         await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets.at(-1).label);
-        for (const width of [1280, 390, 900]) {
+        for (const width of [1280, 390, 900, 320]) {
             await page.setViewportSize({ width, height: 800 });
             await expect
                 .poll(async () =>
                     canvas.evaluate((element) => {
                         const wrap = element.closest(".wrap");
                         const styles = getComputedStyle(wrap);
-                        const expected =
+                        const available =
                             wrap.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+                        const expected = window.innerWidth < 768 ? available : Math.min(available, 30 * 9);
                         return Math.abs(element.getBoundingClientRect().width - expected);
                     })
                 )
@@ -208,6 +209,31 @@ test.describe("Public status page", () => {
                 )
                 .toBe(true);
             await expect(canvas).toHaveAttribute("aria-label", /^Heartbeat history: 30 intervals/);
+            const info = await page.getByTestId("monitor").locator(".info").boundingBox();
+            const bar = await canvas.boundingBox();
+            if (width < 768) {
+                expect(bar.y).toBeGreaterThanOrEqual(info.y + info.height);
+                expect(bar.width / 30).toBeGreaterThan(8);
+            } else {
+                await canvas.press("Escape");
+                const firstCellWidth = await canvas.evaluate((element) => {
+                    const pixels = element
+                        .getContext("2d")
+                        .getImageData(0, Math.floor(element.height / 2), element.width, 1).data;
+                    let width = 0;
+                    for (let index = 3; index < pixels.length; index += 4) {
+                        if (pixels[index] === 255) {
+                            width++;
+                        } else if (width) {
+                            break;
+                        }
+                    }
+                    return width;
+                });
+                expect(firstCellWidth).toBe(5);
+                const wrap = await canvas.locator("xpath=../..").boundingBox();
+                expect(wrap.x + wrap.width - bar.x - bar.width).toBeLessThan(3);
+            }
         }
     });
 

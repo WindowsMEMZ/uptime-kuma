@@ -48,7 +48,7 @@
                             <template #item="monitor">
                                 <div class="item" data-testid="monitor">
                                     <div class="row">
-                                        <div class="col-9 col-xl-6 small-padding">
+                                        <div class="col-12 col-md-6 small-padding">
                                             <div class="info">
                                                 <font-awesome-icon
                                                     v-if="editMode"
@@ -120,7 +120,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div :key="$root.userHeartbeatBar" class="col-3 col-xl-6">
+                                        <div :key="$root.userHeartbeatBar" class="col-12 col-md-6 heartbeat-column">
                                             <HeartbeatBar
                                                 size="mid"
                                                 :monitor-id="monitor.element.id"
@@ -366,6 +366,12 @@ export default {
 
 .monitor-list {
     min-height: 46px;
+}
+
+@media (max-width: 767.98px) {
+    .heartbeat-column {
+        margin-top: 4px;
+    }
 }
 
 .item-name {
