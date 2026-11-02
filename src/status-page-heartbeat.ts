@@ -1,6 +1,14 @@
 import { DOWN, UP, PENDING, MAINTENANCE } from "./util";
 
 export const MAX_HEARTBEAT_WINDOW_MINUTES = 365 * 24 * 60;
+export const HEARTBEAT_WINDOW_PRESETS = {
+    default: 0,
+    day: 1440,
+    week: 10080,
+    "half-month": 21600,
+    month: 43200,
+} as const;
+export type HeartbeatWindowPreset = keyof typeof HEARTBEAT_WINDOW_PRESETS | "custom";
 
 export interface HeartbeatBucket {
     time: string;
@@ -9,6 +17,37 @@ export interface HeartbeatBucket {
     downCount: number;
     maintenanceCount: number;
     status: number | null;
+    label?: string;
+    calendarUnit?: "hour" | "day";
+    timezone?: string;
+}
+
+/**
+ * Resolve stored presets, including windows saved before presets were introduced.
+ * @param config Stored monitor config
+ * @returns Selected preset or custom mode
+ */
+export function getStatusPageHeartbeatPreset(config: unknown): HeartbeatWindowPreset {
+    const minutes = getStatusPageHeartbeatWindow(config);
+    try {
+        const parsed: unknown = typeof config === "string" ? JSON.parse(config) : config;
+        const preset =
+            parsed && typeof parsed === "object"
+                ? (parsed as { statusPageHeartbeatWindowPreset?: unknown }).statusPageHeartbeatWindowPreset
+                : undefined;
+        if (preset === "custom") {
+            return "custom";
+        }
+        if (
+            typeof preset === "string" &&
+            Object.hasOwn(HEARTBEAT_WINDOW_PRESETS, preset) &&
+            HEARTBEAT_WINDOW_PRESETS[preset as keyof typeof HEARTBEAT_WINDOW_PRESETS] === minutes
+        ) {
+            return preset as keyof typeof HEARTBEAT_WINDOW_PRESETS;
+        }
+    } catch {}
+    return (Object.entries(HEARTBEAT_WINDOW_PRESETS).find(([, value]) => value === minutes)?.[0] ??
+        "custom") as HeartbeatWindowPreset;
 }
 
 /**
@@ -73,7 +112,7 @@ export function heartbeatWindowUptime(buckets: Pick<HeartbeatBucket, "upCount" |
  * @returns Merged buckets covering the same window
  */
 export function fitHeartbeatBuckets(buckets: HeartbeatBucket[], maxPoints: number): HeartbeatBucket[] {
-    if (maxPoints <= 0 || buckets.length <= maxPoints) {
+    if (buckets[0]?.calendarUnit || maxPoints <= 0 || buckets.length <= maxPoints) {
         return buckets;
     }
 

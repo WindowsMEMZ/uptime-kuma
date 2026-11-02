@@ -68,6 +68,126 @@ async function addStatusPageWithMonitor(page, name, slug, monitorName) {
 }
 
 test.describe("Public status page", () => {
+    test("saves every preset, validates custom minutes, and keeps daily cells on mobile", async ({ page }) => {
+        test.setTimeout(90_000);
+        const pushUrl = await addPushMonitor(page, "Preset Monitor");
+        const monitorID = Number(page.url().split("/").pop());
+        await page.request.get(pushUrl);
+        await addStatusPageWithMonitor(page, "Preset Demo", "preset-demo", "Preset Monitor");
+        await page.goto(`/edit/${monitorID}`);
+        const select = page.getByTestId("status-page-heartbeat-window-preset");
+        const input = page.getByTestId("status-page-heartbeat-window");
+        await expect(select.locator("option")).toHaveText([
+            "Default",
+            "One day",
+            "One week",
+            "Half a month",
+            "One month",
+            "Custom",
+        ]);
+        const db = new BetterSqlite3("data/playwright-test/kuma.db", { readonly: true });
+        let monthBuckets;
+        try {
+            for (const [preset, minutes, columns] of [
+                ["default", 0, 0],
+                ["day", 1440, 24],
+                ["week", 10080, 7],
+                ["half-month", 21600, 15],
+                ["month", 43200, 30],
+            ]) {
+                await select.selectOption(preset);
+                await expect(input).toHaveCount(0);
+                await page.getByTestId("save-button").click();
+                await expect(page.getByText("Saved.", { exact: true }).last()).toBeVisible();
+                await expect
+                    .poll(() => JSON.parse(db.prepare("SELECT config FROM monitor WHERE id=?").get(monitorID).config))
+                    .toMatchObject({ statusPageHeartbeatWindow: minutes, statusPageHeartbeatWindowPreset: preset });
+                const response = await page.request.get(`/api/status-page/heartbeat/preset-demo?preset=${preset}`);
+                const { heartbeatBarList } = await response.json();
+                if (columns) {
+                    const buckets = heartbeatBarList[monitorID];
+                    expect(buckets).toHaveLength(columns);
+                    expect(buckets.every((bucket) => bucket.calendarUnit === (preset === "day" ? "hour" : "day"))).toBe(
+                        true
+                    );
+                    if (preset === "month") {
+                        monthBuckets = buckets;
+                    }
+                } else {
+                    expect(heartbeatBarList[monitorID]).toBeUndefined();
+                }
+                await page.reload();
+                await expect(select).toHaveValue(preset);
+            }
+            await expect(select).toHaveValue("month");
+            await select.selectOption("custom");
+            await expect(input).toHaveValue("43200");
+            await page.getByTestId("save-button").click();
+            await expect
+                .poll(
+                    () =>
+                        JSON.parse(db.prepare("SELECT config FROM monitor WHERE id=?").get(monitorID).config)
+                            .statusPageHeartbeatWindowPreset
+                )
+                .toBe("custom");
+            const customResponse = await page.request.get("/api/status-page/heartbeat/preset-demo?preset=month");
+            expect((await customResponse.json()).heartbeatBarList[monitorID]).toHaveLength(100);
+            await page.reload();
+            await expect(select).toHaveValue("custom");
+            await input.fill("");
+            await page.getByTestId("save-button").click();
+            expect(await input.evaluate((element) => element.validity.valid)).toBe(false);
+            expect(
+                JSON.parse(db.prepare("SELECT config FROM monitor WHERE id=?").get(monitorID).config)
+                    .statusPageHeartbeatWindowPreset
+            ).toBe("custom");
+            await input.fill("0");
+            expect(await input.evaluate((element) => element.checkValidity())).toBe(false);
+            await input.fill("90");
+            await page.getByTestId("save-button").click();
+            await expect
+                .poll(
+                    () =>
+                        JSON.parse(db.prepare("SELECT config FROM monitor WHERE id=?").get(monitorID).config)
+                            .statusPageHeartbeatWindow
+                )
+                .toBe(90);
+            await page.reload();
+            await expect(select).toHaveValue("custom");
+            await expect(input).toHaveValue("90");
+            await select.selectOption("month");
+            await page.getByTestId("save-button").click();
+            await expect
+                .poll(
+                    () =>
+                        JSON.parse(db.prepare("SELECT config FROM monitor WHERE id=?").get(monitorID).config)
+                            .statusPageHeartbeatWindowPreset
+                )
+                .toBe("month");
+        } finally {
+            db.close();
+        }
+
+        await page.context().clearCookies();
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto("/status/preset-demo");
+        const canvas = page.locator("canvas.heartbeat-canvas").first();
+        await expect(canvas).toBeVisible();
+        await canvas.focus();
+        await canvas.press("Home");
+        await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets[0].label);
+        await canvas.press("End");
+        await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets.at(-1).label);
+        await canvas.press("ArrowLeft");
+        await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets.at(-2).label);
+        await expect(canvas).toHaveAttribute("aria-label", /^Heartbeat history: 30 intervals/);
+        const bounds = await canvas.boundingBox();
+        await page.mouse.move(bounds.x + bounds.width / 60, bounds.y + bounds.height / 2);
+        await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets[0].label);
+        await page.mouse.move(bounds.x + (bounds.width * 59) / 60, bounds.y + bounds.height / 2);
+        await expect(page.locator(".tooltip-time")).toHaveText(monthBuckets.at(-1).label);
+    });
+
     for (const windowMinutes of [0, 1440]) {
         test(`hides retries from public history and availability with a ${windowMinutes}-minute window`, async ({
             page,
@@ -77,7 +197,12 @@ test.describe("Public status page", () => {
             const monitorID = Number(page.url().split("/").pop());
             await page.goto(`/edit/${monitorID}`);
             await page.locator("#maxRetries").fill("2");
-            await page.getByTestId("status-page-heartbeat-window").fill(String(windowMinutes));
+            await page
+                .getByTestId("status-page-heartbeat-window-preset")
+                .selectOption(windowMinutes ? "custom" : "default");
+            if (windowMinutes) {
+                await page.getByTestId("status-page-heartbeat-window").fill(String(windowMinutes));
+            }
             await page.getByTestId("save-button").click();
             await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
             await addStatusPageWithMonitor(page, "Retry Demo", "retry-demo", "Retry Monitor");
@@ -160,7 +285,7 @@ test.describe("Public status page", () => {
         const pushUrl = await addPushMonitor(page, "Rare Outage Monitor");
         const monitorID = Number(page.url().split("/").pop());
         await page.goto(`/edit/${monitorID}`);
-        await page.getByTestId("status-page-heartbeat-window").fill("43200");
+        await page.getByTestId("status-page-heartbeat-window-preset").selectOption("month");
         await page.getByTestId("save-button").click();
         await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
         await page.request.get(pushUrl);
@@ -214,7 +339,10 @@ test.describe("Public status page", () => {
         await page.request.get("/api/status-page/heartbeat/window-demo");
         await page.goto(`/edit/${monitorID}`);
         const windowInput = page.getByTestId("status-page-heartbeat-window");
-        await expect(windowInput).toHaveValue("0");
+        await expect(page.getByTestId("status-page-heartbeat-window-preset")).toHaveValue("default");
+        await expect(windowInput).toHaveCount(0);
+        await page.getByTestId("status-page-heartbeat-window-preset").selectOption("custom");
+        await expect(windowInput).toHaveValue("");
         await windowInput.fill("1440");
 
         const db = new BetterSqlite3("data/playwright-test/kuma.db");

@@ -22,6 +22,28 @@ function createMonitor(config) {
 }
 
 describe("monitorConfigSchema", () => {
+    test("validates preset durations and requires positive custom minutes", () => {
+        for (const [preset, minutes] of [
+            ["default", 0],
+            ["day", 1440],
+            ["week", 10080],
+            ["half-month", 21600],
+            ["month", 43200],
+            ["custom", 90],
+            ["custom", 1440],
+        ]) {
+            const config = { statusPageHeartbeatWindowPreset: preset, statusPageHeartbeatWindow: minutes };
+            assert.deepStrictEqual(monitorConfigSchema.parse(config), config);
+        }
+        for (const config of [
+            { statusPageHeartbeatWindowPreset: "custom", statusPageHeartbeatWindow: 0 },
+            { statusPageHeartbeatWindowPreset: "custom" },
+            { statusPageHeartbeatWindowPreset: "month", statusPageHeartbeatWindow: 90 },
+            { statusPageHeartbeatWindowPreset: "invalid", statusPageHeartbeatWindow: 90 },
+        ]) {
+            assert.throws(() => monitorConfigSchema.parse(config));
+        }
+    });
     test("validates the public heartbeat window", () => {
         for (const value of [0, 1, 90, 525600]) {
             assert.strictEqual(
@@ -80,6 +102,16 @@ describe("Monitor.setConfigValue()", () => {
 });
 
 describe("Monitor.applyClientConfig()", () => {
+    test("persists and publishes a preset without exposing the full monitor config", async () => {
+        const monitor = createMonitor({ private_key: "hidden" });
+        monitor.applyClientConfig({ statusPageHeartbeatWindow: 43200, statusPageHeartbeatWindowPreset: "month" });
+        assert.equal(monitor.getConfig().statusPageHeartbeatWindowPreset, "month");
+        const publicMonitor = await monitor.toPublicJSON();
+        assert.equal(publicMonitor.statusPageHeartbeatWindowPreset, "month");
+        assert.equal(publicMonitor.config, undefined);
+        monitor.applyClientConfig({ statusPageHeartbeatWindow: 43200, statusPageHeartbeatWindowPreset: "custom" });
+        assert.equal((await monitor.toPublicJSON()).statusPageHeartbeatWindowPreset, "custom");
+    });
     test("saves and resets the heartbeat window without overwriting other config", async () => {
         const monitor = createMonitor({ server_key: 1 });
         monitor.applyClientConfig({ statusPageHeartbeatWindow: 1440 });

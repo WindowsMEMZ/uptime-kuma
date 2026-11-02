@@ -6,11 +6,49 @@ import {
     heartbeatBucketStatus,
     heartbeatWindowUptime,
     getStatusPageHeartbeatWindow,
+    getStatusPageHeartbeatPreset,
+    HEARTBEAT_WINDOW_PRESETS,
     MAX_HEARTBEAT_WINDOW_MINUTES,
     type HeartbeatBucket,
 } from "../../src/status-page-heartbeat";
 
 describe("public heartbeat windows", () => {
+    test("recognizes legacy presets and preserves explicitly custom durations", () => {
+        for (const [preset, minutes] of Object.entries(HEARTBEAT_WINDOW_PRESETS)) {
+            assert.equal(getStatusPageHeartbeatPreset({ statusPageHeartbeatWindow: minutes }), preset);
+            assert.equal(getStatusPageHeartbeatPreset(JSON.stringify({ statusPageHeartbeatWindow: minutes })), preset);
+        }
+        assert.equal(
+            getStatusPageHeartbeatPreset({
+                statusPageHeartbeatWindow: 43200,
+                statusPageHeartbeatWindowPreset: "custom",
+            }),
+            "custom"
+        );
+        assert.equal(getStatusPageHeartbeatPreset({ statusPageHeartbeatWindow: 90 }), "custom");
+        assert.equal(
+            getStatusPageHeartbeatPreset({ statusPageHeartbeatWindow: 90, statusPageHeartbeatWindowPreset: "month" }),
+            "custom"
+        );
+        assert.equal(getStatusPageHeartbeatPreset("{broken"), "default");
+    });
+
+    test("calendar columns keep their individual dates even on narrow screens", () => {
+        const buckets: HeartbeatBucket[] = Array.from({ length: 30 }, (_, index) => ({
+            time: String(index),
+            endTime: String(index + 1),
+            upCount: 1,
+            downCount: 0,
+            maintenanceCount: 0,
+            status: UP,
+            calendarUnit: "day",
+            label: String(index),
+        }));
+        for (const width of [1, 3, 15, 30, 60]) {
+            assert.deepEqual(fitHeartbeatBuckets(buckets, width), buckets);
+        }
+    });
+
     test("calculates window uptime from check counts instead of averaging bucket percentages", () => {
         assert.equal(
             heartbeatWindowUptime([

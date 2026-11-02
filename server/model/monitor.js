@@ -65,7 +65,7 @@ const { promisify } = require("node:util");
 const brotliCompress = promisify(zlib.brotliCompress);
 const DomainExpiry = require("./domain_expiry");
 const { monitorConfigSchema } = require("../types");
-const { getStatusPageHeartbeatWindow } = require("../../src/status-page-heartbeat");
+const { getStatusPageHeartbeatWindow, getStatusPageHeartbeatPreset } = require("../../src/status-page-heartbeat");
 
 const rootCertificates = rootCertificatesFingerprints();
 
@@ -92,6 +92,7 @@ class Monitor extends BeanModel {
             sendUrl: this.sendUrl,
             type: this.type,
             statusPageHeartbeatWindow: getStatusPageHeartbeatWindow(this.getConfig()),
+            statusPageHeartbeatWindowPreset: getStatusPageHeartbeatPreset(this.getConfig()),
         };
 
         if (this.sendUrl) {

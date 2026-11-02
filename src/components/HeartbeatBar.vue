@@ -79,6 +79,7 @@ export default {
             beatHoverAreaPadding: 4,
             move: false,
             maxBeat: -1,
+            availableWidth: 0,
             // Tooltip data
             tooltipVisible: false,
             tooltipContent: null,
@@ -91,6 +92,17 @@ export default {
         };
     },
     computed: {
+        calendarBuckets() {
+            return !!this.beatList?.[0]?.calendarUnit;
+        },
+
+        beatFullWidth() {
+            if (this.calendarBuckets && this.availableWidth > 0) {
+                return this.availableWidth / this.beatList.length;
+            }
+            return this.beatWidth + this.beatHoverAreaPadding * 2;
+        },
+
         /**
          * Normalize the configured public window.
          * @returns {number} Window in minutes
@@ -264,8 +276,7 @@ export default {
          * @returns {number} Canvas width in pixels
          */
         canvasWidth() {
-            const beatFullWidth = this.beatWidth + this.beatHoverAreaPadding * 2;
-            return this.shortBeatList.length * beatFullWidth;
+            return this.shortBeatList.length * this.beatFullWidth;
         },
 
         /**
@@ -290,7 +301,7 @@ export default {
             const downCount = validBeats.filter((b) => Number(b.status) === DOWN).length;
             const pendingCount = validBeats.filter((b) => Number(b.status) === PENDING).length;
             if (this.normalizedHeartbeatWindow > 0) {
-                return `Heartbeat history: ${validBeats.length} intervals, ${upCount} up, ${downCount} down, ${pendingCount} mixed`;
+                return `Heartbeat history: ${this.shortBeatList.length} intervals, ${upCount} up, ${downCount} down, ${pendingCount} mixed`;
             }
 
             return `Heartbeat history: ${validBeats.length} checks, ${upCount} up, ${downCount} down`;
@@ -421,9 +432,14 @@ export default {
          */
         resize() {
             if (this.$refs.wrap) {
+                const styles = getComputedStyle(this.$refs.wrap);
+                this.availableWidth = Math.max(
+                    1,
+                    this.$refs.wrap.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight)
+                );
                 this.maxBeat = Math.max(
                     1,
-                    Math.floor(this.$refs.wrap.clientWidth / (this.beatWidth + this.beatHoverAreaPadding * 2))
+                    Math.floor(this.availableWidth / (this.beatWidth + this.beatHoverAreaPadding * 2))
                 );
             }
         },
@@ -505,7 +521,7 @@ export default {
                 this.tooltipContent = beat;
 
                 // Calculate the beat's position within the canvas
-                const beatFullWidth = this.beatWidth + this.beatHoverAreaPadding * 2;
+                const beatFullWidth = this.beatFullWidth;
                 const beatCenterX = beatIndex * beatFullWidth + beatFullWidth / 2;
 
                 // Convert to viewport coordinates
@@ -585,7 +601,7 @@ export default {
             // Clear canvas
             ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
 
-            const beatFullWidth = this.beatWidth + this.beatHoverAreaPadding * 2;
+            const beatFullWidth = this.beatFullWidth;
             const centerY = this.canvasHeight / 2;
 
             // Cache CSS colors once per redraw
@@ -601,10 +617,11 @@ export default {
 
             // Draw each beat
             this.shortBeatList.forEach((beat, index) => {
-                const x = index * beatFullWidth + this.beatHoverAreaPadding;
+                const baseWidth = this.calendarBuckets ? Math.max(0.5, beatFullWidth * 0.65) : this.beatWidth;
+                const x = index * beatFullWidth + (beatFullWidth - baseWidth) / 2;
                 const isHovered = index === this.hoveredBeatIndex;
 
-                let width = this.beatWidth;
+                let width = baseWidth;
                 let height = this.beatHeight;
                 let offsetX = x;
                 let offsetY = centerY - height / 2;
@@ -613,12 +630,12 @@ export default {
                 if (isHovered && beat !== 0) {
                     width *= this.hoverScale;
                     height *= this.hoverScale;
-                    offsetX = x - (width - this.beatWidth) / 2;
+                    offsetX = x - (width - baseWidth) / 2;
                     offsetY = centerY - height / 2;
                 }
 
                 // Calculate border radius based on current width (pill shape = half of width)
-                const borderRadius = width / 2;
+                const borderRadius = Math.min(width, height) / 2;
 
                 // Get color based on beat status
                 let color = this.getBeatColor(beat, colors);
@@ -724,7 +741,7 @@ export default {
 
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
-            const beatFullWidth = this.beatWidth + this.beatHoverAreaPadding * 2;
+            const beatFullWidth = this.beatFullWidth;
             const beatIndex = Math.floor(x / beatFullWidth);
 
             if (beatIndex >= 0 && beatIndex < this.shortBeatList.length) {

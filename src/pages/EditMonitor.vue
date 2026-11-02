@@ -1717,14 +1717,35 @@
 
                             <div v-if="monitor.config" class="my-3">
                                 <label for="status-page-heartbeat-window" class="form-label">
-                                    {{ $t("Status Page Heartbeat Window") }} ({{ $t("Minutes") }})
+                                    {{ $t("Status Page Heartbeat Window") }}
+                                </label>
+                                <select
+                                    id="status-page-heartbeat-window"
+                                    v-model="heartbeatWindowPreset"
+                                    class="form-select"
+                                    data-testid="status-page-heartbeat-window-preset"
+                                >
+                                    <option value="default">{{ $t("Default") }}</option>
+                                    <option value="day">{{ $t("heartbeatWindowDay") }}</option>
+                                    <option value="week">{{ $t("heartbeatWindowWeek") }}</option>
+                                    <option value="half-month">{{ $t("heartbeatWindowHalfMonth") }}</option>
+                                    <option value="month">{{ $t("heartbeatWindowMonth") }}</option>
+                                    <option value="custom">{{ $t("Custom") }}</option>
+                                </select>
+                                <label
+                                    v-if="heartbeatWindowPreset === 'custom'"
+                                    for="status-page-heartbeat-minutes"
+                                    class="form-label mt-2"
+                                >
+                                    {{ $t("Minutes") }}
                                 </label>
                                 <input
-                                    id="status-page-heartbeat-window"
+                                    v-if="heartbeatWindowPreset === 'custom'"
+                                    id="status-page-heartbeat-minutes"
                                     v-model.number="monitor.config.statusPageHeartbeatWindow"
                                     type="number"
                                     class="form-control"
-                                    min="0"
+                                    min="1"
                                     max="525600"
                                     step="1"
                                     required
@@ -3304,6 +3325,7 @@ import isFQDN from "validator/lib/isFQDN";
 import isIP from "validator/lib/isIP";
 import HiddenInput from "../components/HiddenInput.vue";
 import EditMonitorConditions from "../components/EditMonitorConditions.vue";
+import { getStatusPageHeartbeatPreset, HEARTBEAT_WINDOW_PRESETS } from "../status-page-heartbeat";
 
 const toast = useToast();
 
@@ -3440,6 +3462,21 @@ export default {
     },
 
     computed: {
+        heartbeatWindowPreset: {
+            get() {
+                return getStatusPageHeartbeatPreset(this.monitor.config);
+            },
+            set(preset) {
+                this.monitor.config.statusPageHeartbeatWindowPreset = preset;
+                if (preset === "custom") {
+                    if (!this.monitor.config.statusPageHeartbeatWindow) {
+                        this.monitor.config.statusPageHeartbeatWindow = null;
+                    }
+                } else {
+                    this.monitor.config.statusPageHeartbeatWindow = HEARTBEAT_WINDOW_PRESETS[preset];
+                }
+            },
+        },
         timeoutStep() {
             return this.monitor.type === "ping" ? 1 : 0.1;
         },
@@ -4111,6 +4148,9 @@ message HealthCheckResponse {
 
                         this.monitor = res.monitor;
                         this.monitor.config.statusPageHeartbeatWindow ??= 0;
+                        this.monitor.config.statusPageHeartbeatWindowPreset = getStatusPageHeartbeatPreset(
+                            this.monitor.config
+                        );
 
                         if (this.isClone) {
                             /*

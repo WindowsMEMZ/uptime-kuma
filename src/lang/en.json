@@ -1649,7 +1649,11 @@
     "msGraphClientSecretDescription": "Learn how to {clientSecret} for your application registration.",
     "msGraphClientSecretLink": "create a client secret",
     "Status Page Heartbeat Window": "Status Page Heartbeat Window",
-    "statusPageHeartbeatWindowDescription": "Time window in minutes for this monitor on public status pages (up to 365 days). Set 0 for automatic. All passed: green; all failed (including retries): red; mixed: yellow; no data: gray. Maintenance is excluded from checks. Longer windows retain more heartbeat data and use more storage, subject to the global retention setting. Previously deleted history cannot be restored.",
+    "statusPageHeartbeatWindowDescription": "Default shows individual checks. One day uses hourly columns; week, half-month and month show 7, 15 and 30 calendar days, including today, in the server timezone. Custom requires minutes (up to 365 days). Retry attempts are ignored and maintenance is excluded from availability. History is subject to data retention settings.",
+    "heartbeatWindowDay": "One day",
+    "heartbeatWindowWeek": "One week",
+    "heartbeatWindowHalfMonth": "Half a month",
+    "heartbeatWindowMonth": "One month",
     "Partial outage": "Partial outage",
     "heartbeatBucketCounts": "{up} passed, {down} failed, {maintenance} maintenance"
 }

@@ -656,6 +656,7 @@ app.use(function (req, res, next) {
 
                 // Known config keys only, so a payload never replaces the whole config
                 const previousHeartbeatWindow = bean.getConfigValue("statusPageHeartbeatWindow", 0);
+                const previousHeartbeatPreset = bean.getConfigValue("statusPageHeartbeatWindowPreset");
                 bean.applyClientConfig(monitor.config);
 
                 bean.sshUsername = monitor.sshUsername;
@@ -677,7 +678,10 @@ app.use(function (req, res, next) {
 
                 await R.store(bean);
 
-                if (bean.getConfigValue("statusPageHeartbeatWindow", 0) !== previousHeartbeatWindow) {
+                if (
+                    bean.getConfigValue("statusPageHeartbeatWindow", 0) !== previousHeartbeatWindow ||
+                    bean.getConfigValue("statusPageHeartbeatWindowPreset") !== previousHeartbeatPreset
+                ) {
                     apicache.clear();
                 }
 

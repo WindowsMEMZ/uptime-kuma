@@ -14,7 +14,7 @@ const { SimpleMigrationServer } = require("./utils/simple-migration-server");
 const BetterSqlite3Database = require("better-sqlite3");
 const KumaColumnCompiler = require("./utils/knex/lib/dialects/mysql2/schema/mysql2-columncompiler");
 const SqlString = require("sqlstring");
-const { getStatusPageHeartbeatWindow } = require("../src/status-page-heartbeat");
+const { getStatusPageHeartbeatWindow, getStatusPageHeartbeatPreset } = require("../src/status-page-heartbeat");
 const { auth } = require("./better-auth");
 
 /**
@@ -1056,6 +1056,13 @@ class Database {
         const sqlHourOffset = Database.sqlHourOffset();
 
         for (let monitor of monitors) {
+            const preset = getStatusPageHeartbeatPreset(monitor.config);
+            // Calendar days can be longer than 24 hours across timezone transitions.
+            const calendarMargin = preset !== "default" && preset !== "custom" ? 24 : 0;
+            const retainHours = Math.max(
+                24,
+                Math.ceil(getStatusPageHeartbeatWindow(monitor.config) / 60) + calendarMargin
+            );
             if (detailedLog) {
                 log.info("db", "Deleting non-important heartbeats for monitor " + monitor.id);
             }
@@ -1075,7 +1082,7 @@ class Database {
                     )  AS limited_ids
                 )
             `,
-                [monitor.id, -Math.max(24, Math.ceil(getStatusPageHeartbeatWindow(monitor.config) / 60)), monitor.id, 100]
+                [monitor.id, -retainHours, monitor.id, 100]
             );
         }
     }

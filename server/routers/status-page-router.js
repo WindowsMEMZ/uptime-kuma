@@ -7,7 +7,11 @@ const { R } = require("redbean-node");
 const { badgeConstants } = require("../../src/util");
 const { makeBadge } = require("badge-maker");
 const { UptimeCalculator } = require("../uptime-calculator");
-const { getStatusPageHeartbeatWindow, heartbeatWindowUptime } = require("../../src/status-page-heartbeat");
+const {
+    getStatusPageHeartbeatWindow,
+    getStatusPageHeartbeatPreset,
+    heartbeatWindowUptime,
+} = require("../../src/status-page-heartbeat");
 const { getStatusPageHeartbeatBuckets, getStatusPageHeartbeatList } = require("../status-page-heartbeat");
 
 let router = express.Router();
@@ -70,6 +74,7 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
         let heartbeatList = {};
         let uptimeList = {};
         let heartbeatBarList = {};
+        const timezone = await server.getTimezone();
 
         let slug = request.params.slug;
         slug = slug.toLowerCase();
@@ -92,7 +97,10 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
 
             const windowMinutes = getStatusPageHeartbeatWindow(monitor.config);
             if (windowMinutes > 0) {
-                heartbeatBarList[monitorID] = await getStatusPageHeartbeatBuckets(monitorID, windowMinutes);
+                heartbeatBarList[monitorID] = await getStatusPageHeartbeatBuckets(monitorID, windowMinutes, undefined, {
+                    preset: getStatusPageHeartbeatPreset(monitor.config),
+                    timezone,
+                });
             }
 
             const uptimeCalculator = await UptimeCalculator.getUptimeCalculator(monitorID);

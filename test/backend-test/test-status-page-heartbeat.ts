@@ -47,6 +47,78 @@ async function check(status: number, time: dayjs.Dayjs, monitorID = 1, retries =
 }
 
 describe("public heartbeat SQL aggregation", () => {
+    test("groups a month into 30 server-local calendar days, clipping the current day at now", async () => {
+        const today = dayjs.utc("2026-11-01T16:00:00Z");
+        await check(DOWN, today.subtract(1, "millisecond"));
+        await check(UP, today);
+        await check(PENDING, today.add(1, "minute"), 1, 1);
+        await check(MAINTENANCE, today.add(2, "minutes"));
+        await check(UP, now.subtract(1, "millisecond"));
+        await check(DOWN, now.add(1, "millisecond"));
+        const buckets = await getStatusPageHeartbeatBuckets(1, 43200, now, {
+            preset: "month",
+            timezone: "Asia/Shanghai",
+        });
+        assert.equal(buckets.length, 30);
+        assert.equal(buckets[0].label, "2026-10-04");
+        assert.equal(buckets.at(-1).label, "2026-11-02");
+        assert.equal(buckets.at(-1).time, today.format(format));
+        assert.equal(buckets.at(-1).endTime, today.add(1, "day").format(format));
+        assert.equal(buckets.at(-2).status, DOWN);
+        assert.equal(buckets.at(-1).status, UP);
+        assert.equal(buckets.at(-1).upCount, 2);
+        assert.equal(buckets.at(-1).downCount, 0);
+        assert.equal(buckets.at(-1).maintenanceCount, 1);
+        assert.ok(buckets.every((bucket) => bucket.calendarUnit === "day" && bucket.timezone === "Asia/Shanghai"));
+    });
+
+    test("uses 23-hour and 25-hour days at daylight saving transitions", async () => {
+        for (const [timestamp, date, hours] of [
+            ["2026-03-09T12:00Z", "2026-03-08", 23],
+            ["2026-11-02T12:00Z", "2026-11-01", 25],
+        ] as const) {
+            const buckets = await getStatusPageHeartbeatBuckets(1, 10080, dayjs.utc(timestamp), {
+                preset: "week",
+                timezone: "America/New_York",
+            });
+            assert.equal(buckets.length, 7);
+            const bucket = buckets.find((item) => item.label === date);
+            assert.equal(dayjs.utc(bucket.endTime).diff(dayjs.utc(bucket.time), "hour"), hours);
+            for (let index = 1; index < buckets.length; index++) {
+                assert.equal(buckets[index - 1].endTime, buckets[index].time);
+            }
+        }
+    });
+
+    test("hourly presets preserve both occurrences of the repeated daylight saving hour", async () => {
+        const buckets = await getStatusPageHeartbeatBuckets(1, 1440, dayjs.utc("2026-11-01T08:30Z"), {
+            preset: "day",
+            timezone: "America/New_York",
+        });
+        assert.equal(buckets.length, 24);
+        const repeated = buckets.filter((bucket) => bucket.label.startsWith("2026-11-01 01:00"));
+        assert.equal(repeated.length, 2);
+        assert.notEqual(repeated[0].label, repeated[1].label);
+        assert.ok(buckets.every((bucket) => dayjs.utc(bucket.endTime).diff(dayjs.utc(bucket.time), "minute") === 60));
+    });
+
+    test("half-month presets contain 15 local days while custom durations retain 100 rolling buckets", async () => {
+        const buckets = await getStatusPageHeartbeatBuckets(1, 21600, now, {
+            preset: "half-month",
+            timezone: "Asia/Kathmandu",
+        });
+        assert.equal(buckets.length, 15);
+        assert.ok(
+            buckets.every((bucket) => dayjs.utc(bucket.time).tz(bucket.timezone).format("HH:mm:ss") === "00:00:00")
+        );
+        const custom = await getStatusPageHeartbeatBuckets(1, 43200, now, {
+            preset: "custom",
+            timezone: "Asia/Shanghai",
+        });
+        assert.equal(custom.length, 100);
+        assert.ok(custom.every((bucket) => !bucket.calendarUnit && !bucket.label));
+    });
+
     test("hides retry attempts while retaining confirmed failures and native pending states", async () => {
         const start = now.subtract(100, "minutes");
         await check(UP, start);

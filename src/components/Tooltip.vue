@@ -114,6 +114,9 @@ export default {
             if (!this.content || this.content === 0) {
                 return "";
             }
+            if (this.content.label) {
+                return this.content.label;
+            }
             const start = this.$root.datetime(this.content.time);
             return this.content.endTime ? `${start} – ${this.$root.datetime(this.content.endTime)}` : start;
         },
