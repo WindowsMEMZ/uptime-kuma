@@ -47,9 +47,10 @@ tsconfig.json
 /.prettierrc.js
 /.prettierignore
 
-# Only src/util.ts is used by the server at runtime
+# Shared modules used by the server at runtime
 /src/*
 !/src/util.ts
+!/src/status-page-heartbeat.ts
 
 # Comment the following line if you want to rebuild the healthcheck binary
 /extra/healthcheck-armv7
