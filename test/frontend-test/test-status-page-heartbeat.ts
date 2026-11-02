@@ -4,12 +4,32 @@ import { UP, DOWN, PENDING, MAINTENANCE } from "../../src/util";
 import {
     fitHeartbeatBuckets,
     heartbeatBucketStatus,
+    heartbeatWindowUptime,
     getStatusPageHeartbeatWindow,
     MAX_HEARTBEAT_WINDOW_MINUTES,
     type HeartbeatBucket,
 } from "../../src/status-page-heartbeat";
 
 describe("public heartbeat windows", () => {
+    test("calculates window uptime from check counts instead of averaging bucket percentages", () => {
+        assert.equal(
+            heartbeatWindowUptime([
+                { upCount: 99999, downCount: 0 },
+                { upCount: 0, downCount: 1 },
+            ]),
+            0.99999
+        );
+        assert.equal(
+            heartbeatWindowUptime([
+                { upCount: 1, downCount: 1 },
+                { upCount: 8, downCount: 0 },
+            ]),
+            0.9
+        );
+        assert.equal(heartbeatWindowUptime([{ upCount: 0, downCount: 0 }]), 0);
+        assert.equal(heartbeatWindowUptime([]), 0);
+    });
+
     test("reads valid windows and keeps automatic mode for missing or invalid config", () => {
         assert.equal(getStatusPageHeartbeatWindow('{"statusPageHeartbeatWindow":90}'), 90);
         assert.equal(

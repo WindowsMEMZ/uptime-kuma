@@ -101,9 +101,10 @@ test.describe("Public status page", () => {
                 const { heartbeatList, heartbeatBarList, uptimeList } = await (await polling).json();
                 expect(heartbeatList[monitorID].map((beat) => beat.status)).toEqual(expectedHistory);
                 expect(uptimeList[`${monitorID}_24`]).toBeCloseTo(expectedUptime);
+                expect(uptimeList[`${monitorID}_statusPage`]).toBeCloseTo(expectedUptime);
                 await expect(page.getByText(expectedStatus, { exact: true })).toBeVisible();
                 const pill = page.getByTestId("monitor").locator(".info .badge");
-                await expect(pill).toHaveText(`${Math.round(expectedUptime * 10000) / 100}%`);
+                await expect(pill).toHaveText(`${(Math.round(expectedUptime * 10000) / 100).toFixed(2)}%`);
                 await expect(pill).toHaveClass(expectedHistory.at(-1) === 1 ? /bg-primary/ : /bg-danger/);
                 const badge = await page.request.get(`/api/status-page/retry-demo/badge?phase=${phase}`);
                 expect(await badge.text()).toContain(expectedHistory.at(-1) === 1 ? "Up" : "Down");
@@ -151,9 +152,57 @@ test.describe("Public status page", () => {
             await visit("All Systems Operational", 1, [1, 1]);
             await push("error");
             await visit("Degraded Service", 2 / 3, [1, 1, 0]);
-
         });
     }
+
+    test("uses the full 30-day window and caps rare outages at 99.99%", async ({ page }) => {
+        test.setTimeout(90_000);
+        const pushUrl = await addPushMonitor(page, "Rare Outage Monitor");
+        const monitorID = Number(page.url().split("/").pop());
+        await page.goto(`/edit/${monitorID}`);
+        await page.getByTestId("status-page-heartbeat-window").fill("43200");
+        await page.getByTestId("save-button").click();
+        await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+        await page.request.get(pushUrl);
+
+        const db = new BetterSqlite3("data/playwright-test/kuma.db");
+        try {
+            const insert = db.prepare(
+                "INSERT INTO heartbeat (monitor_id,status,time,retries,important) VALUES (?,?,?,?,0)"
+            );
+            const timestamp = (daysAgo) =>
+                dayjs().subtract(daysAgo, "days").toISOString().replace("T", " ").replace("Z", "");
+            db.transaction(() => {
+                db.prepare("DELETE FROM heartbeat WHERE monitor_id=?").run(monitorID);
+                for (let index = 0; index < 20001; index++) {
+                    insert.run(monitorID, 1, timestamp(index === 0 ? 10 : 0.01), 0);
+                }
+                insert.run(monitorID, 0, timestamp(10), 0);
+                insert.run(monitorID, 0, timestamp(31), 0);
+                insert.run(monitorID, 3, timestamp(5), 0);
+                insert.run(monitorID, 2, timestamp(0.001), 1);
+            })();
+        } finally {
+            db.close();
+        }
+
+        await addStatusPageWithMonitor(page, "Rare Outage Demo", "rare-outage", "Rare Outage Monitor");
+        await page.context().clearCookies();
+        const polling = page.waitForResponse((response) =>
+            response.url().endsWith("/api/status-page/heartbeat/rare-outage")
+        );
+        await page.goto("/status/rare-outage");
+        const { heartbeatBarList, uptimeList } = await (await polling).json();
+        expect(uptimeList[`${monitorID}_24`]).toBe(1);
+        expect(uptimeList[`${monitorID}_statusPage`]).toBeCloseTo(20001 / 20002, 10);
+        const buckets = heartbeatBarList[monitorID];
+        expect(buckets.reduce((sum, bucket) => sum + bucket.downCount, 0)).toBe(1);
+        expect(buckets.some((bucket) => bucket.status === 2)).toBe(true);
+        const pill = page.getByTestId("monitor").locator(".info .badge");
+        await expect(pill).toHaveText("99.99%");
+        await expect(pill).toHaveAttribute("title", "30 days");
+        await expect(page.getByText("All Systems Operational", { exact: true })).toBeVisible();
+    });
 
     test("saves a per-monitor window and renders aggregated history for visitors", async ({ page }) => {
         await addPushMonitor(page, "Window Monitor");

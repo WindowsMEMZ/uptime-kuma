@@ -52,6 +52,21 @@ export function heartbeatBucketStatus(
 }
 
 /**
+ * Calculate availability from every confirmed check in the displayed window.
+ * @param buckets Buckets covering the public heartbeat window
+ * @returns Successful check fraction, excluding maintenance and empty intervals
+ */
+export function heartbeatWindowUptime(buckets: Pick<HeartbeatBucket, "upCount" | "downCount">[]): number {
+    let up = 0;
+    let down = 0;
+    for (const bucket of buckets) {
+        up += bucket.upCount;
+        down += bucket.downCount;
+    }
+    return up + down > 0 ? up / (up + down) : 0;
+}
+
+/**
  * Fit server buckets into a bar without dropping any part of its time window.
  * @param buckets Chronological server buckets, including empty intervals
  * @param maxPoints Available columns

@@ -4,6 +4,8 @@
 
 <script>
 import { DOWN, MAINTENANCE, PENDING, UP } from "../util.ts";
+import { formatUptime } from "../uptime";
+import { getStatusPageHeartbeatWindow } from "../status-page-heartbeat";
 
 export default {
     props: {
@@ -32,17 +34,7 @@ export default {
 
             let key = this.monitor.id + "_" + this.type;
 
-            if (this.$root.uptimeList[key] !== undefined) {
-                let result = Math.round(this.$root.uptimeList[key] * 10000) / 100;
-                // Only perform sanity check on status page. See louislam/uptime-kuma#2628
-                if (this.$route.path.startsWith("/status") && result > 100) {
-                    return "100%";
-                } else {
-                    return result + "%";
-                }
-            }
-
-            return this.$t("notAvailableShort");
+            return formatUptime(this.$root.uptimeList[key]) ?? this.$t("notAvailableShort");
         },
 
         color() {
@@ -84,6 +76,18 @@ export default {
         },
 
         title() {
+            if (this.type === "statusPage") {
+                const minutes = getStatusPageHeartbeatWindow(this.monitor);
+                if (minutes > 0) {
+                    if (minutes % 1440 === 0) {
+                        return this.$t("days", minutes / 1440);
+                    }
+                    if (minutes % 60 === 0) {
+                        return this.$t("hours", minutes / 60);
+                    }
+                    return this.$t("minutes", minutes);
+                }
+            }
             if (this.type === "1y") {
                 return this.$t("years", 1);
             }
