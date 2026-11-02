@@ -8,7 +8,7 @@ const { badgeConstants } = require("../../src/util");
 const { makeBadge } = require("badge-maker");
 const { UptimeCalculator } = require("../uptime-calculator");
 const { getStatusPageHeartbeatWindow } = require("../../src/status-page-heartbeat");
-const { getStatusPageHeartbeatBuckets } = require("../status-page-heartbeat");
+const { getStatusPageHeartbeatBuckets, getStatusPageHeartbeatList } = require("../status-page-heartbeat");
 
 let router = express.Router();
 
@@ -88,18 +88,7 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
 
         for (let monitor of monitors) {
             const monitorID = monitor.id;
-            let list = await R.getAll(
-                `
-                    SELECT * FROM heartbeat
-                    WHERE monitor_id = ?
-                    ORDER BY time DESC
-                    LIMIT 100
-            `,
-                [monitorID]
-            );
-
-            list = R.convertToBeans("heartbeat", list);
-            heartbeatList[monitorID] = list.reverse().map((row) => row.toPublicJSON());
+            heartbeatList[monitorID] = await getStatusPageHeartbeatList(monitorID);
 
             const windowMinutes = getStatusPageHeartbeatWindow(monitor.config);
             if (windowMinutes > 0) {
@@ -210,15 +199,7 @@ router.get("/api/status-page/:slug/badge", cache("5 minutes"), async (request, r
 
         for (let monitorID of monitorIDList) {
             // retrieve the latest heartbeat
-            let beat = await R.getAll(
-                `
-                    SELECT * FROM heartbeat
-                    WHERE monitor_id = ?
-                    ORDER BY time DESC
-                    LIMIT 1
-            `,
-                [monitorID]
-            );
+            let beat = await getStatusPageHeartbeatList(monitorID, 1);
 
             // to be sure, when corresponding monitor not found
             if (beat.length === 0) {

@@ -7,7 +7,7 @@ import { UP, DOWN, PENDING, MAINTENANCE } from "../../src/util";
 const require = createRequire(import.meta.url);
 const knex = require("knex");
 const { R } = require("redbean-node");
-const { getStatusPageHeartbeatBuckets } = require("../../server/status-page-heartbeat");
+const { getStatusPageHeartbeatBuckets, getStatusPageHeartbeatList } = require("../../server/status-page-heartbeat");
 const Database = require("../../server/database");
 const originalConfig = Database.dbConfig;
 const now = dayjs.utc("2026-11-02T06:00:00.125Z");
@@ -15,8 +15,9 @@ const format = "YYYY-MM-DD HH:mm:ss.SSS";
 
 before(async () => {
     R.setup(knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true }));
+    await R.autoloadModels("./server/model");
     await R.exec(
-        "CREATE TABLE heartbeat (id INTEGER PRIMARY KEY, monitor_id INTEGER, time TEXT, status INTEGER, important INTEGER DEFAULT 0)"
+        "CREATE TABLE heartbeat (id INTEGER PRIMARY KEY, monitor_id INTEGER, time TEXT, status INTEGER, retries INTEGER DEFAULT 0, important INTEGER DEFAULT 0)"
     );
     await R.exec("CREATE INDEX heartbeat_monitor_time ON heartbeat(monitor_id, time)");
     await R.exec("CREATE TABLE monitor (id INTEGER PRIMARY KEY, config TEXT)");
@@ -38,13 +39,64 @@ after(async () => {
  * @param status Check status
  * @param time Check timestamp
  * @param monitorID Monitor id
+ * @param retries Retry attempt count
  * @returns Insertion result
  */
-async function check(status: number, time: dayjs.Dayjs, monitorID = 1) {
-    return R.knex("heartbeat").insert({ monitor_id: monitorID, time: time.format(format), status });
+async function check(status: number, time: dayjs.Dayjs, monitorID = 1, retries = 0) {
+    return R.knex("heartbeat").insert({ monitor_id: monitorID, time: time.format(format), status, retries });
 }
 
 describe("public heartbeat SQL aggregation", () => {
+    test("hides retry attempts while retaining confirmed failures and native pending states", async () => {
+        const start = now.subtract(100, "minutes");
+        await check(UP, start);
+        await check(PENDING, start.add(1, "second"), 1, 1);
+        await check(PENDING, start.add(2, "seconds"), 1, 2);
+        await check(UP, start.add(3, "seconds"));
+        await check(PENDING, start.add(1, "minute"), 1, 1);
+        await check(PENDING, start.add(61, "seconds"), 1, 2);
+        await check(DOWN, start.add(62, "seconds"), 1, 3);
+        await check(PENDING, start.add(2, "minutes"));
+
+        const buckets = await getStatusPageHeartbeatBuckets(1, 100, now);
+        assert.equal(buckets[0].status, UP);
+        assert.equal(buckets[0].upCount, 2);
+        assert.equal(buckets[0].downCount, 0);
+        assert.equal(buckets[1].status, DOWN);
+        assert.equal(buckets[1].downCount, 1);
+        assert.equal(buckets[2].status, DOWN);
+
+        const list = await getStatusPageHeartbeatList(1);
+        assert.deepEqual(
+            list.map((beat) => beat.status),
+            [UP, UP, DOWN, PENDING]
+        );
+        assert.equal(await R.getCell("SELECT COUNT(*) FROM heartbeat WHERE status = ? AND retries > 0", [PENDING]), 4);
+    });
+
+    test("finds the last confirmed state beyond 100 retries and changes it only after exhaustion", async () => {
+        const start = now.subtract(100, "minutes");
+        await check(UP, start);
+        for (let i = 1; i <= 101; i++) {
+            await check(PENDING, start.add(i, "seconds"), 1, i);
+        }
+        assert.deepEqual(
+            (await getStatusPageHeartbeatList(1, 1)).map((beat) => beat.status),
+            [UP]
+        );
+        await check(DOWN, now.subtract(1, "second"), 1, 102);
+        assert.deepEqual(
+            (await getStatusPageHeartbeatList(1, 1)).map((beat) => beat.status),
+            [DOWN]
+        );
+    });
+
+    test("does not invent a failure or success before the first retry sequence finishes", async () => {
+        await check(PENDING, now.subtract(1, "second"), 1, 1);
+        assert.deepEqual(await getStatusPageHeartbeatList(1), []);
+        assert.ok((await getStatusPageHeartbeatBuckets(1, 100, now)).every((bucket) => bucket.status === null));
+    });
+
     test("includes every check, isolates monitors, and retains empty intervals", async () => {
         const start = now.subtract(100, "minutes");
         await check(UP, start);

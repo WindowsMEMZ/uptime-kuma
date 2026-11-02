@@ -1077,7 +1077,12 @@ class Monitor extends BeanModel {
 
             // Calculate uptime
             let uptimeCalculator = await UptimeCalculator.getUptimeCalculator(this.id);
-            let endTimeDayjs = await uptimeCalculator.update(bean.status, parseFloat(bean.ping));
+            let endTimeDayjs = await uptimeCalculator.update(
+                bean.status,
+                parseFloat(bean.ping),
+                undefined,
+                bean.retries
+            );
             bean.end_time = R.isoDateTimeMillis(endTimeDayjs);
 
             // Send to frontend

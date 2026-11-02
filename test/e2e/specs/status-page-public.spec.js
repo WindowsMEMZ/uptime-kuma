@@ -68,6 +68,93 @@ async function addStatusPageWithMonitor(page, name, slug, monitorName) {
 }
 
 test.describe("Public status page", () => {
+    for (const windowMinutes of [0, 1440]) {
+        test(`hides retries from public history and availability with a ${windowMinutes}-minute window`, async ({
+            page,
+        }) => {
+            test.setTimeout(90_000);
+            const pushUrl = await addPushMonitor(page, "Retry Monitor");
+            const monitorID = Number(page.url().split("/").pop());
+            await page.goto(`/edit/${monitorID}`);
+            await page.locator("#maxRetries").fill("2");
+            await page.getByTestId("status-page-heartbeat-window").fill(String(windowMinutes));
+            await page.getByTestId("save-button").click();
+            await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+            await addStatusPageWithMonitor(page, "Retry Demo", "retry-demo", "Retry Monitor");
+
+            let phase = 0;
+            await page.route("**/api/status-page/heartbeat/retry-demo", async (route) => {
+                await route.continue({ url: route.request().url() + `?phase=${phase}` });
+            });
+            const push = async (status) => {
+                const url = new URL(pushUrl);
+                url.searchParams.set("status", status);
+                const response = await page.request.get(url.toString());
+                expect((await response.json()).ok).toBe(true);
+            };
+            const visit = async (expectedStatus, expectedUptime, expectedHistory) => {
+                phase++;
+                const polling = page.waitForResponse((response) =>
+                    response.url().includes(`/api/status-page/heartbeat/retry-demo?phase=${phase}`)
+                );
+                await page.goto("/status/retry-demo");
+                const { heartbeatList, heartbeatBarList, uptimeList } = await (await polling).json();
+                expect(heartbeatList[monitorID].map((beat) => beat.status)).toEqual(expectedHistory);
+                expect(uptimeList[`${monitorID}_24`]).toBeCloseTo(expectedUptime);
+                await expect(page.getByText(expectedStatus, { exact: true })).toBeVisible();
+                const pill = page.getByTestId("monitor").locator(".info .badge");
+                await expect(pill).toHaveText(`${Math.round(expectedUptime * 10000) / 100}%`);
+                await expect(pill).toHaveClass(expectedHistory.at(-1) === 1 ? /bg-primary/ : /bg-danger/);
+                const badge = await page.request.get(`/api/status-page/retry-demo/badge?phase=${phase}`);
+                expect(await badge.text()).toContain(expectedHistory.at(-1) === 1 ? "Up" : "Down");
+                const rss = await page.request.get(`/status/retry-demo/rss?phase=${phase}`);
+                expect((await rss.text()).includes("Retry Monitor is down")).toBe(expectedHistory.at(-1) === 0);
+                if (windowMinutes > 0) {
+                    const buckets = heartbeatBarList[monitorID];
+                    const failures = buckets.reduce((sum, bucket) => sum + bucket.downCount, 0);
+                    expect(failures).toBe(expectedHistory.filter((status) => status === 0).length);
+                    if (failures === 0) {
+                        expect(buckets.every((bucket) => bucket.status === 1 || bucket.status === null)).toBe(true);
+                    }
+                }
+            };
+
+            await push("up");
+            // Non-explicit failures use the same retry counter as missed push heartbeats.
+            await push("error");
+            await push("error");
+            await page.context().clearCookies();
+            await visit("All Systems Operational", 1, [1]);
+
+            const db = new BetterSqlite3("data/playwright-test/kuma.db", { readonly: true });
+            try {
+                const attempts = db
+                    .prepare("SELECT status, retries FROM heartbeat WHERE monitor_id = ? ORDER BY id")
+                    .all(monitorID);
+                expect(attempts).toEqual([
+                    { status: 1, retries: 0 },
+                    { status: 2, retries: 1 },
+                    { status: 2, retries: 2 },
+                ]);
+                const stats = db
+                    .prepare("SELECT SUM(up) AS up, SUM(down) AS down FROM stat_minutely WHERE monitor_id = ?")
+                    .get(monitorID);
+                expect(stats).toEqual({ up: 1, down: 0 });
+            } finally {
+                db.close();
+            }
+
+            await push("up");
+            await visit("All Systems Operational", 1, [1, 1]);
+            await push("error");
+            await push("error");
+            await visit("All Systems Operational", 1, [1, 1]);
+            await push("error");
+            await visit("Degraded Service", 2 / 3, [1, 1, 0]);
+
+        });
+    }
+
     test("saves a per-monitor window and renders aggregated history for visitors", async ({ page }) => {
         await addPushMonitor(page, "Window Monitor");
         const monitorID = Number(page.url().split("/").pop());

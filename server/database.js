@@ -997,7 +997,7 @@ class Database {
                 // Get all the heartbeats for this monitor and date
                 let heartbeats = await R.getAll(
                     `
-                    SELECT status, ping, time
+                    SELECT status, ping, time, retries
                     FROM heartbeat
                     WHERE monitor_id = ?
                     AND DATE(time) = ?
@@ -1013,7 +1013,12 @@ class Database {
                 }
 
                 for (let heartbeat of heartbeats) {
-                    await calculator.update(heartbeat.status, parseFloat(heartbeat.ping), dayjs(heartbeat.time));
+                    await calculator.update(
+                        heartbeat.status,
+                        parseFloat(heartbeat.ping),
+                        dayjs(heartbeat.time),
+                        heartbeat.retries
+                    );
                 }
 
                 // Calculate progress: (current_monitor_index + relative_date_progress) / total_monitors

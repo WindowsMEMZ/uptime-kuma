@@ -324,6 +324,7 @@ app.use(function (req, res, next) {
             }
             await Database.connect();
             await Database.patch();
+            await UptimeCalculator.removeAll();
 
             response.send("Snapshot restored.");
         });

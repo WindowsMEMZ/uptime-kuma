@@ -5,6 +5,25 @@ const { heartbeatBucketStatus } = require("../src/status-page-heartbeat");
 
 const BUCKET_COUNT = 100;
 const TIME_FORMAT = SQL_DATETIME_FORMAT + ".SSS";
+const CONFIRMED_HEARTBEAT = `NOT (status = ${PENDING} AND COALESCE(retries, 0) > 0)`;
+
+/**
+ * Return public checks without exposing failures that are still being retried.
+ * @param {number} monitorID Monitor id
+ * @param {number} limit Maximum number of confirmed checks
+ * @returns {Promise<object[]>} Chronological public heartbeats
+ */
+async function getStatusPageHeartbeatList(monitorID, limit = 100) {
+    const rows = await R.getAll(
+        `SELECT * FROM heartbeat
+         WHERE monitor_id = ? AND ${CONFIRMED_HEARTBEAT}
+         ORDER BY time DESC, id DESC LIMIT ?`,
+        [monitorID, limit]
+    );
+    return R.convertToBeans("heartbeat", rows)
+        .reverse()
+        .map((row) => row.toPublicJSON());
+}
 
 /**
  * Aggregate retained checks in SQL so a long window never sends raw history to visitors.
@@ -37,7 +56,7 @@ async function getStatusPageHeartbeatBuckets(monitorID, windowMinutes, now = day
                 SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) AS down_count,
                 SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS maintenance_count
          FROM heartbeat
-         WHERE monitor_id = ? AND time >= ? AND time < ?
+         WHERE monitor_id = ? AND time >= ? AND time < ? AND ${CONFIRMED_HEARTBEAT}
          GROUP BY bucket ORDER BY bucket`,
         [startTime, bucketWidth, UP, DOWN, PENDING, MAINTENANCE, monitorID, startTime, endTime]
     );
@@ -62,4 +81,4 @@ async function getStatusPageHeartbeatBuckets(monitorID, windowMinutes, now = day
     return buckets;
 }
 
-module.exports = { getStatusPageHeartbeatBuckets };
+module.exports = { getStatusPageHeartbeatBuckets, getStatusPageHeartbeatList };

@@ -215,16 +215,22 @@ class UptimeCalculator {
      * @param {number} status status
      * @param {number} ping Ping
      * @param {dayjs.Dayjs} date Date (Only for migration)
+     * @param {number} retries Number of attempts in the current retry sequence
      * @returns {Promise<dayjs.Dayjs>} date
      * @throws {Error} Invalid status
      */
-    async update(status, ping = 0, date) {
+    async update(status, ping = 0, date, retries = 0) {
         // A beat without an explicit date happens now, so its current buckets must be
         // continued from the database. Check this before defaulting `date`.
         const isLiveBeat = !date;
 
         if (!date) {
             date = this.getCurrentDate();
+        }
+
+        // Retry attempts have no confirmed result and must not change availability.
+        if (status === PENDING && retries > 0) {
+            return date;
         }
 
         let flatStatus = this.flatStatus(status);

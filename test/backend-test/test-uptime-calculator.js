@@ -16,6 +16,44 @@ function createCalculator() {
 }
 
 describe("Uptime Calculator", () => {
+    test("retry attempts do not change any availability period or create failure buckets", async () => {
+        const calculator = createCalculator();
+        const date = dayjs.utc("2026-11-02 08:00:00");
+        UptimeCalculator.currentDate = date;
+        await calculator.update(UP, 123);
+        for (let retries = 1; retries <= 3; retries++) {
+            assert.equal((await calculator.update(PENDING, 0, date, retries)).unix(), date.unix());
+        }
+        assert.equal(calculator.get24Hour().uptime, 1);
+        assert.equal(calculator.get30Day().uptime, 1);
+        assert.equal(calculator.get1Year().uptime, 1);
+        await calculator.update(DOWN, 0, date, 4);
+        for (const list of [
+            calculator.minutelyUptimeDataList,
+            calculator.hourlyUptimeDataList,
+            calculator.dailyUptimeDataList,
+        ]) {
+            const data = list.last();
+            assert.equal(data.up, 1);
+            assert.equal(data.down, 1);
+            assert.equal(data.avgPing, 123);
+        }
+        assert.equal(calculator.get24Hour().uptime, 0.5);
+    });
+
+    test("retries across minute boundaries leave the previous uptime intact", async () => {
+        const calculator = createCalculator();
+        const date = dayjs.utc("2026-11-02 08:00:00");
+        UptimeCalculator.currentDate = date;
+        await calculator.update(UP, 123);
+        UptimeCalculator.currentDate = date.add(2, "minutes");
+        await calculator.update(PENDING, 0, undefined, 1);
+        assert.equal(calculator.minutelyUptimeDataList.length(), 1);
+        assert.equal(calculator.get24Hour().uptime, 1);
+        await calculator.update(UP, 234);
+        assert.equal(calculator.get24Hour().uptime, 1);
+    });
+
     test("getCurrentDate() returns custom date when set", () => {
         let c1 = createCalculator();
 

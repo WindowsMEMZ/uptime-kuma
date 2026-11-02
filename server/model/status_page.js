@@ -8,6 +8,7 @@ const { marked } = require("marked");
 const { Feed } = require("feed");
 const config = require("../config");
 const dayjs = require("dayjs");
+const { getStatusPageHeartbeatList } = require("../status-page-heartbeat");
 
 const { setting } = require("../util");
 const {
@@ -281,7 +282,7 @@ class StatusPage extends BeanModel {
 
         for (let monitorGroup of publicGroupList) {
             for (const monitor of monitorGroup.monitorList) {
-                const heartbeat = await R.findOne("heartbeat", "monitor_id = ? ORDER BY time DESC", [monitor.id]);
+                const [heartbeat] = await getStatusPageHeartbeatList(monitor.id, 1);
                 if (heartbeat) {
                     heartbeats.push({
                         ...monitor,
