@@ -1,3 +1,5 @@
+import { normalizeStatusColors, STATUS_COLOR_KEYS, statusColorForeground } from "../status-colors";
+
 export default {
     data() {
         return {
@@ -8,6 +10,7 @@ export default {
             statusPageTheme: "light",
             forceStatusPageTheme: false,
             path: "",
+            statusColors: normalizeStatusColors(null),
         };
     },
 
@@ -62,9 +65,23 @@ export default {
         isDark() {
             return this.theme === "dark";
         },
+
+        statusPalette() {
+            return this.statusColors[this.isDark ? "dark" : "light"];
+        },
     },
 
     watch: {
+        statusPalette: {
+            immediate: true,
+            deep: true,
+            handler(palette) {
+                for (const key of STATUS_COLOR_KEYS) {
+                    document.body.style.setProperty(`--status-${key}`, palette[key]);
+                    document.body.style.setProperty(`--status-${key}-text`, statusColorForeground(palette[key]));
+                }
+            },
+        },
         "$route.fullPath"(path) {
             this.path = path;
         },
@@ -94,6 +111,14 @@ export default {
     },
 
     methods: {
+        /**
+         * Apply the server's shared light and dark status palettes.
+         * @param {object} colors Status color settings
+         * @returns {void}
+         */
+        setStatusColors(colors) {
+            this.statusColors = normalizeStatusColors(colors);
+        },
         /**
          * Update the theme color meta tag
          * @returns {void}

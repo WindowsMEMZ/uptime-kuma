@@ -17,7 +17,7 @@
                 class="incident-item"
                 :class="{ resolved: !incident.active }"
             >
-                <div class="incident-style-indicator" :class="`bg-${incident.style}`"></div>
+                <div class="incident-style-indicator status-panel" :class="`bg-${incident.style}`"></div>
                 <div class="incident-body">
                     <div class="incident-header d-flex justify-content-between align-items-start">
                         <h5 class="incident-title mb-0">{{ incident.title }}</h5>

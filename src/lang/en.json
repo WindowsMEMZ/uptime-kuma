@@ -1655,5 +1655,10 @@
     "heartbeatWindowHalfMonth": "Half a month",
     "heartbeatWindowMonth": "One month",
     "Partial outage": "Partial outage",
-    "heartbeatBucketCounts": "{up} passed, {down} failed, {maintenance} maintenance"
+    "heartbeatBucketCounts": "{up} passed, {down} failed, {maintenance} maintenance",
+    "Status colors": "Status colors",
+    "statusColorsDescription": "Shared by the dashboard and all public status pages. Each theme uses its own palette. Restore defaults, then save to apply them.",
+    "Pending / Partial outage": "Pending / Partial outage",
+    "Restore default colors": "Restore default colors",
+    "No data": "No data"
 }

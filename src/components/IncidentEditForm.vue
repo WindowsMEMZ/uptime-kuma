@@ -1,6 +1,6 @@
 <template>
     <div
-        class="shadow-box alert mb-4 p-4 incident"
+        class="shadow-box alert mb-4 p-4 incident status-panel"
         role="alert"
         :class="'bg-' + modelValue.style"
         data-testid="incident-edit"

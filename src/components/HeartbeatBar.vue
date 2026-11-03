@@ -354,6 +354,13 @@ export default {
             });
         },
 
+        "$root.statusPalette": {
+            deep: true,
+            handler() {
+                this.$nextTick(this.drawCanvas);
+            },
+        },
+
         hoveredBeatIndex() {
             this.drawCanvas();
         },
@@ -622,16 +629,7 @@ export default {
             const beatFullWidth = this.beatFullWidth;
             const centerY = this.canvasHeight / 2;
 
-            // Cache CSS colors once per redraw
-            const rootStyles = getComputedStyle(document.documentElement);
-            const canvasStyles = getComputedStyle(canvas.parentElement);
-            const colors = {
-                empty: canvasStyles.getPropertyValue("--beat-empty-color") || "#f0f8ff",
-                down: rootStyles.getPropertyValue("--bs-danger") || "#dc3545",
-                pending: rootStyles.getPropertyValue("--bs-warning") || "#ffc107",
-                maintenance: rootStyles.getPropertyValue("--maintenance") || "#1d4ed8",
-                up: rootStyles.getPropertyValue("--bs-primary") || "#5cdd8b",
-            };
+            const colors = this.$root.statusPalette;
 
             // Draw each beat
             this.shortBeatList.forEach((beat, index) => {
@@ -719,9 +717,10 @@ export default {
                 return colors.pending;
             } else if (status === MAINTENANCE) {
                 return colors.maintenance;
-            } else {
+            } else if (status === UP) {
                 return colors.up;
             }
+            return colors.unknown;
         },
 
         /**
@@ -891,12 +890,6 @@ export default {
 }
 
 .hp-bar-big {
-    --beat-empty-color: #f0f8ff;
-
-    .dark & {
-        --beat-empty-color: #848484;
-    }
-
     .heartbeat-canvas {
         display: block;
         cursor: pointer;

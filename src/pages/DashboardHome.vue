@@ -9,29 +9,29 @@
                 <div class="row">
                     <div class="col">
                         <h3>{{ $t("Up") }}</h3>
-                        <span class="num" :class="$root.stats.up === 0 && 'text-secondary'">
+                        <span class="num status-text" :class="$root.stats.up === 0 && 'text-secondary'">
                             {{ $root.stats.up }}
                         </span>
                     </div>
                     <div class="col">
                         <h3>{{ $t("Down") }}</h3>
-                        <span class="num" :class="$root.stats.down > 0 ? 'text-danger' : 'text-secondary'">
+                        <span class="num status-text" :class="$root.stats.down > 0 ? 'text-danger' : 'text-secondary'">
                             {{ $root.stats.down }}
                         </span>
                     </div>
                     <div class="col">
                         <h3>{{ $t("Maintenance") }}</h3>
-                        <span class="num" :class="$root.stats.maintenance > 0 ? 'text-maintenance' : 'text-secondary'">
+                        <span class="num status-text" :class="$root.stats.maintenance > 0 ? 'text-maintenance' : 'text-secondary'">
                             {{ $root.stats.maintenance }}
                         </span>
                     </div>
                     <div class="col">
                         <h3>{{ $t("Unknown") }}</h3>
-                        <span class="num text-secondary">{{ $root.stats.unknown }}</span>
+                        <span class="num status-text text-secondary">{{ $root.stats.unknown }}</span>
                     </div>
                     <div class="col">
                         <h3>{{ $t("pauseDashboardHome") }}</h3>
-                        <span class="num text-secondary">{{ $root.stats.pause }}</span>
+                        <span class="num status-text text-secondary">{{ $root.stats.pause }}</span>
                     </div>
                 </div>
             </div>
@@ -310,7 +310,7 @@ export default {
 
 .num {
     font-size: 30px;
-    color: $primary;
+    color: var(--status-up);
     font-weight: bold;
     display: block;
 }

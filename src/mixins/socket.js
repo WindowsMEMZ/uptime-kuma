@@ -161,7 +161,10 @@ export default {
             socket.on("info", (info) => {
                 // Sent without `runtime` before login (hideVersion), so keep a safe default
                 this.info = { runtime: { platform: "" }, ...info };
+                this.setStatusColors(info.statusColors);
             });
+
+            socket.on("statusColors", (colors) => this.setStatusColors(colors));
 
             socket.on("setup", () => {
                 this.$router.push("/setup");

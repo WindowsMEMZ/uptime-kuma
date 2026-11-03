@@ -35,8 +35,8 @@ textarea.form-control {
 }
 
 .bg-maintenance {
-    color: white !important;
-    background-color: $maintenance !important;
+    color: var(--status-maintenance-text) !important;
+    background-color: var(--status-maintenance) !important;
 }
 
 .bg-dark {
@@ -44,7 +44,7 @@ textarea.form-control {
 }
 
 .text-maintenance {
-    color: $maintenance !important;
+    color: var(--status-maintenance) !important;
 }
 
 .incident a,
@@ -674,3 +674,15 @@ $shadow-box-padding: 20px;
 // Localization
 
 @import "localization.scss";
+
+@each $name, $status in (primary: up, danger: down, warning: pending, maintenance: maintenance, secondary: unknown) {
+    .status-badge.bg-#{$name},
+    .status-panel.bg-#{$name} {
+        background-color: var(--status-#{$status}) !important;
+        color: var(--status-#{$status}-text) !important;
+    }
+
+    .status-text.text-#{$name} {
+        color: var(--status-#{$status}) !important;
+    }
+}

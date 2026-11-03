@@ -291,16 +291,16 @@ export default {
         getBarColorForDatapoint(datapoint) {
             if (datapoint.maintenance != null) {
                 // Target is in maintenance
-                return "rgba(23,71,245,0.41)";
+                return this.$root.statusPalette.maintenance + "69";
             } else if (datapoint.down === 0) {
                 // Target is up, no need to display a bar
                 return "#000";
             } else if (datapoint.up === 0) {
                 // Target is down
-                return "rgba(220, 53, 69, 0.41)";
+                return this.$root.statusPalette.down + "69";
             } else {
                 // Show yellow for mixed status
-                return "rgba(245, 182, 23, 0.41)";
+                return this.$root.statusPalette.pending + "69";
             }
         },
         // push datapoint to chartData
@@ -398,13 +398,13 @@ export default {
                 });
                 switch (beat.status) {
                     case MAINTENANCE:
-                        colorData.push("rgba(23 ,71, 245, 0.41)");
+                        colorData.push(this.$root.statusPalette.maintenance + "69");
                         break;
                     case PENDING:
-                        colorData.push("rgba(245, 182, 23, 0.41)");
+                        colorData.push(this.$root.statusPalette.pending + "69");
                         break;
                     default:
-                        colorData.push("rgba(220, 53, 69, 0.41)");
+                        colorData.push(this.$root.statusPalette.down + "69");
                 }
 
                 lastHeartbeatTime = beatTime;
@@ -417,8 +417,8 @@ export default {
                         data: pingData,
                         fill: "origin",
                         tension: 0.2,
-                        borderColor: "#4ABF74",
-                        backgroundColor: "#4ABF7438",
+                        borderColor: this.$root.statusPalette.up,
+                        backgroundColor: this.$root.statusPalette.up + "38",
                         yAxisID: "y",
                         label: this.$t("avgPing"),
                     },
@@ -547,8 +547,8 @@ export default {
                         data: minPingData,
                         fill: "origin",
                         tension: 0.2,
-                        borderColor: "#126331",
-                        backgroundColor: "#2F9C5914",
+                        borderColor: this.$root.statusPalette.up + "99",
+                        backgroundColor: this.$root.statusPalette.up + "14",
                         yAxisID: "y",
                         label: this.$t("minPing"),
                     },
@@ -557,8 +557,8 @@ export default {
                         data: avgPingData,
                         fill: "origin",
                         tension: 0.2,
-                        borderColor: "#5CDD8B",
-                        backgroundColor: "#5CDD8B06",
+                        borderColor: this.$root.statusPalette.up,
+                        backgroundColor: this.$root.statusPalette.up + "06",
                         yAxisID: "y",
                         label: this.$t("avgPing"),
                     },
@@ -567,8 +567,8 @@ export default {
                         data: maxPingData,
                         fill: "origin",
                         tension: 0.2,
-                        borderColor: "#21b55a",
-                        backgroundColor: "#1E7A4214",
+                        borderColor: this.$root.statusPalette.up + "cc",
+                        backgroundColor: this.$root.statusPalette.up + "14",
                         yAxisID: "y",
                         label: this.$t("maxPing"),
                     },

@@ -9,6 +9,7 @@ const { Feed } = require("feed");
 const config = require("../config");
 const dayjs = require("dayjs");
 const { getStatusPageHeartbeatList } = require("../status-page-heartbeat");
+const { normalizeStatusColors } = require("../../src/status-colors");
 
 const { setting } = require("../util");
 const {
@@ -467,6 +468,7 @@ class StatusPage extends BeanModel {
      */
     async toPublicJSON() {
         return {
+            statusColors: normalizeStatusColors(await setting("statusColors")),
             slug: this.slug,
             title: this.title,
             description: this.description,

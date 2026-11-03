@@ -323,7 +323,7 @@
                 <!-- Display mode for this incident -->
                 <div
                     v-else
-                    class="shadow-box alert mb-4 p-4 incident"
+                    class="shadow-box alert mb-4 p-4 incident status-panel"
                     role="alert"
                     :class="'bg-' + activeIncident.style"
                     data-testid="incident"
@@ -405,7 +405,7 @@
                     </div>
 
                     <div v-else>
-                        <font-awesome-icon icon="question-circle" style="color: #efefef" />
+                        <font-awesome-icon icon="question-circle" class="status-unknown" />
                     </div>
                 </template>
             </div>
@@ -997,6 +997,7 @@ export default {
         this.getData()
             .then((res) => {
                 this.config = res.data.config;
+                this.$root.setStatusColors(this.config.statusColors);
 
                 if (!this.config.domainNameList) {
                     this.config.domainNameList = [];
@@ -1074,6 +1075,7 @@ export default {
             if (!this.editMode) {
                 axios.get("/api/status-page/heartbeat/" + this.slug).then((res) => {
                     const { heartbeatList, uptimeList, heartbeatBarList } = res.data;
+                    this.$root.setStatusColors(res.data.statusColors);
 
                     this.$root.heartbeatList = heartbeatList;
                     this.$root.uptimeList = uptimeList;
@@ -1502,15 +1504,15 @@ export default {
     font-size: 25px;
 
     .ok {
-        color: $primary;
+        color: var(--status-up);
     }
 
     .warning {
-        color: $warning;
+        color: var(--status-pending);
     }
 
     .danger {
-        color: $danger;
+        color: var(--status-down);
     }
 }
 
@@ -1687,7 +1689,7 @@ footer {
 }
 
 .maintenance-bg-info {
-    color: $maintenance;
+    color: var(--status-maintenance);
 }
 
 .maintenance-icon {
@@ -1699,8 +1701,12 @@ footer {
     background-color: #0d1117;
 }
 
+.status-unknown {
+    color: var(--status-unknown);
+}
+
 .status-maintenance {
-    color: $maintenance;
+    color: var(--status-maintenance);
     margin-right: 5px;
 }
 

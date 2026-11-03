@@ -436,6 +436,6 @@ export default {
 }
 
 .bg-maintenance {
-    background-color: $maintenance;
+    background-color: var(--status-maintenance);
 }
 </style>

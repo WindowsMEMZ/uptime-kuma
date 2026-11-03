@@ -20,6 +20,7 @@ import { readApiKey } from "./auth";
 import { initAdminFromEnv } from "./initial-admin";
 import { betterAuthSocketHandler } from "./socket-handlers/better-auth-socket-handler";
 import { loadEnvFile } from "node:process";
+import { normalizeStatusColors, validateStatusColors } from "../src/status-colors";
 import * as fs from "node:fs";
 
 console.log("Welcome to Uptime Kuma");
@@ -1206,6 +1207,11 @@ app.use(function (req, res, next) {
             try {
                 checkLogin(socket);
 
+                if (Object.hasOwn(data, "statusColors")) {
+                    validateStatusColors(data.statusColors);
+                    data.statusColors = normalizeStatusColors(data.statusColors);
+                }
+
                 // If currently is disabled auth, don't need to check
                 // Disabled Auth + Want to Disable Auth => No Check
                 // Disabled Auth + Want to Enable Auth => No Check
@@ -1228,6 +1234,11 @@ app.use(function (req, res, next) {
 
                 await setSettings("general", data);
                 server.entryPage = data.entryPage;
+
+                if (Object.hasOwn(data, "statusColors")) {
+                    apicache.clear();
+                    io.emit("statusColors", data.statusColors);
+                }
 
                 // Start or stop the Prometheus sampling when the API is toggled
                 if (previousPrometheusApiEnabled !== data.prometheusApiEnabled) {

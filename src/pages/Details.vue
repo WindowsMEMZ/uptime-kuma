@@ -157,7 +157,7 @@
                     </div>
                     <div class="col-md-4 text-center">
                         <span
-                            class="badge rounded-pill"
+                            class="badge rounded-pill status-badge"
                             :class="'bg-' + status.color"
                             style="font-size: 30px"
                             data-testid="monitor-status"

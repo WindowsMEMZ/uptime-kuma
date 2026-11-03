@@ -13,6 +13,8 @@ const {
     heartbeatWindowUptime,
 } = require("../../src/status-page-heartbeat");
 const { getStatusPageHeartbeatBuckets, getStatusPageHeartbeatList } = require("../status-page-heartbeat");
+const { normalizeStatusColors } = require("../../src/status-colors");
+const { Settings } = require("../settings");
 
 let router = express.Router();
 
@@ -114,6 +116,7 @@ router.get("/api/status-page/heartbeat/:slug", cache("1 minutes"), async (reques
             heartbeatList,
             uptimeList,
             heartbeatBarList,
+            statusColors: normalizeStatusColors(await Settings.get("statusColors")),
         });
     } catch (error) {
         sendHttpError(response, error.message);

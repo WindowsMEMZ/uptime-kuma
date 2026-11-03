@@ -51,6 +51,7 @@ tsconfig.json
 /src/*
 !/src/util.ts
 !/src/status-page-heartbeat.ts
+!/src/status-colors.ts
 
 # Comment the following line if you want to rebuild the healthcheck binary
 /extra/healthcheck-armv7

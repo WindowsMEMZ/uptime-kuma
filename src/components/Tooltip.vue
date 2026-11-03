@@ -163,23 +163,23 @@ export default {
             letter-spacing: 0.5px;
 
             &.status-up {
-                color: $primary;
+                color: var(--status-up);
             }
 
             &.status-down {
-                color: $danger;
+                color: var(--status-down);
             }
 
             &.status-pending {
-                color: $warning;
+                color: var(--status-pending);
             }
 
             &.status-maintenance {
-                color: $maintenance;
+                color: var(--status-maintenance);
             }
 
             &.status-empty {
-                color: $secondary-text;
+                color: var(--status-empty);
             }
         }
 

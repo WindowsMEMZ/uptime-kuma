@@ -69,7 +69,7 @@ export default {
 
         className() {
             if (this.pill) {
-                return `badge rounded-pill bg-${this.color}`;
+                return `badge rounded-pill status-badge bg-${this.color}`;
             }
 
             return "";
