@@ -117,6 +117,7 @@ test("shares saved palettes with internal pages and every public page, including
 
         // An already open authenticated page receives the palette over its socket.
         await expect(dashboard.getByTestId("monitor-status")).toHaveCSS("background-color", "rgb(18, 52, 86)");
+        await expect(dashboard.locator(".item .status-badge")).toHaveCSS("color", "rgb(255, 255, 255)");
         const internalCanvas = dashboard.locator("canvas.heartbeat-canvas").last();
         for (const status of ["up", "down", "pending", "maintenance", "empty"]) {
             await expect.poll(() => canvasColors(internalCanvas)).toContain(palettes.light[status]);
@@ -129,6 +130,8 @@ test("shares saved palettes with internal pages and every public page, including
             expect(config.config.statusColors).toEqual(palettes);
             await publicPage.goto(`/status/${slug}`);
             await expect(publicPage.locator(".status-badge")).toHaveCSS("background-color", "rgb(18, 52, 86)");
+            await publicPage.addStyleTag({ content: ".light .info .status-badge { color: black !important; }" });
+            await expect(publicPage.locator(".status-badge")).toHaveCSS("color", "rgb(255, 255, 255)");
             for (const status of ["up", "down", "pending", "maintenance", "empty"]) {
                 await expect
                     .poll(() => canvasColors(publicPage.locator("canvas.heartbeat-canvas")))
@@ -140,6 +143,7 @@ test("shares saved palettes with internal pages and every public page, including
             document.querySelector("#app")._vnode.component.proxy.statusPageTheme = "dark";
         });
         await expect(publicPage.locator(".status-badge")).toHaveCSS("background-color", "rgb(254, 220, 186)");
+        await publicPage.addStyleTag({ content: ".dark .info .status-badge { color: white !important; }" });
         await expect(publicPage.locator(".status-badge")).toHaveCSS("color", "rgb(0, 0, 0)");
         for (const status of ["up", "down", "pending", "maintenance", "empty"]) {
             await expect

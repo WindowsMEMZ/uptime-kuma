@@ -1,11 +1,12 @@
 <template>
-    <span :class="className" :title="title">{{ uptime }}</span>
+    <span :class="className" :style="textStyle" :title="title">{{ uptime }}</span>
 </template>
 
 <script>
 import { DOWN, MAINTENANCE, PENDING, UP } from "../util.ts";
 import { formatUptime } from "../uptime";
 import { getStatusPageHeartbeatWindow } from "../status-page-heartbeat";
+import { statusColorForeground } from "../status-colors";
 
 export default {
     props: {
@@ -73,6 +74,22 @@ export default {
             }
 
             return "";
+        },
+
+        textStyle() {
+            if (!this.pill) {
+                return null;
+            }
+
+            const status = {
+                primary: "up",
+                danger: "down",
+                warning: "pending",
+                maintenance: "maintenance",
+                secondary: "unknown",
+            }[this.color];
+            const foreground = statusColorForeground(this.$root.statusPalette[status]);
+            return { color: `${foreground} !important` };
         },
 
         title() {
