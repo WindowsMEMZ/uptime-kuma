@@ -329,13 +329,7 @@
                     data-testid="incident"
                 >
                     <h4 class="alert-heading" data-testid="incident-title">{{ activeIncident.title }}</h4>
-                    <!-- eslint-disable vue/no-v-html -->
-                    <div
-                        class="content"
-                        data-testid="incident-content"
-                        v-html="getIncidentHTML(activeIncident.content)"
-                    ></div>
-                    <!-- eslint-enable vue/no-v-html -->
+                    <IncidentTimeline :incident="activeIncident" data-testid="incident-content" />
 
                     <!-- Incident Date -->
                     <div class="date mt-3">
@@ -621,6 +615,7 @@ import DOMPurify from "dompurify";
 import Confirm from "../components/Confirm.vue";
 import PublicGroupList from "../components/PublicGroupList.vue";
 import MaintenanceTime from "../components/MaintenanceTime.vue";
+import IncidentTimeline from "../components/IncidentTimeline.vue";
 import IncidentHistory from "../components/IncidentHistory.vue";
 import IncidentManageModal from "../components/IncidentManageModal.vue";
 import IncidentEditForm from "../components/IncidentEditForm.vue";
@@ -661,6 +656,7 @@ export default {
         Tag,
         VueMultiselect,
         IncidentHistory,
+        IncidentTimeline,
         IncidentManageModal,
         IncidentEditForm,
     },
@@ -712,6 +708,9 @@ export default {
             updateCountdownText: null,
             loading: true,
             incidentHistory: [],
+            activeIncidentList: [],
+            incidentRevision: null,
+            incidentInterval: null,
             incidentHistoryLoading: false,
             incidentHistoryNextCursor: null,
             incidentHistoryHasMore: false,
@@ -868,7 +867,7 @@ export default {
          * @returns {object[]} List of active pinned incidents
          */
         activeIncidents() {
-            return this.incidentHistory.filter((i) => i.active && i.pin);
+            return this.activeIncidentList;
         },
 
         /**
@@ -1019,6 +1018,7 @@ export default {
                     },
                     Math.max(5, this.config.autoRefreshInterval) * 1000
                 );
+                this.incidentInterval = setInterval(() => this.updateIncidents(), 5000);
 
                 this.updateUpdateTimer();
             })
@@ -1038,6 +1038,11 @@ export default {
             await this._authPromise;
             this.edit();
         }
+    },
+    beforeUnmount() {
+        clearInterval(feedInterval);
+        clearInterval(this.incidentInterval);
+        clearInterval(this.updateCountdown);
     },
     methods: {
         /**
@@ -1103,6 +1108,28 @@ export default {
                     this.updateUpdateTimer();
                 });
             }
+        },
+
+        /**
+         * Refresh incidents independently of the heartbeat refresh interval.
+         * @returns {void}
+         */
+        updateIncidents() {
+            if (this.editMode) {
+                this.loadIncidentHistory();
+                return;
+            }
+            axios
+                .get(`/api/status-page/${this.slug}/incidents`)
+                .then(({ data }) => {
+                    this.activeIncidentList = data.activeIncidents;
+                    if (this.incidentRevision !== data.incidentRevision) {
+                        this.incidentRevision = data.incidentRevision;
+                        this.loadIncidentHistory();
+                        this.updateHeartbeatList();
+                    }
+                })
+                .catch(() => {});
         },
 
         /**
@@ -1415,6 +1442,7 @@ export default {
                 this.$root.getSocket().emit("getIncidentHistory", this.slug, cursor, (res) => {
                     this.incidentHistoryLoading = false;
                     if (res.ok) {
+                        this.activeIncidentList = res.activeIncidents || [];
                         if (append) {
                             this.incidentHistory = [...this.incidentHistory, ...res.incidents];
                         } else {
@@ -1436,6 +1464,7 @@ export default {
                     .then((res) => {
                         this.incidentHistoryLoading = false;
                         if (res.data.ok) {
+                            this.activeIncidentList = res.data.activeIncidents || [];
                             if (append) {
                                 this.incidentHistory = [...this.incidentHistory, ...res.data.incidents];
                             } else {

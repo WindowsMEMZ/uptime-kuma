@@ -1,3 +1,4 @@
+const incidentService = require("../incident-service");
 let express = require("express");
 const apicache = require("../utils/response-cache");
 const { UptimeKumaServer } = require("../uptime-kuma-server");
@@ -150,6 +151,23 @@ router.get("/api/status-page/:slug/manifest.json", cache("1440 minutes"), async 
                     type: "image/png",
                 },
             ],
+        });
+    } catch (error) {
+        sendHttpError(response, error.message);
+    }
+});
+
+router.get("/api/status-page/:slug/incidents", cache("5 seconds"), async (request, response) => {
+    allowDevAllOrigin(response);
+    try {
+        const statusPageID = await StatusPage.slugToID(request.params.slug.toLowerCase());
+        if (!statusPageID) {
+            sendHttpError(response, "Status Page Not Found");
+            return;
+        }
+        response.json({
+            incidentRevision: incidentService.getRevision(),
+            activeIncidents: await incidentService.activeForPage(statusPageID),
         });
     } catch (error) {
         sendHttpError(response, error.message);

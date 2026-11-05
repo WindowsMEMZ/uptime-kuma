@@ -5,6 +5,10 @@
                 <font-awesome-icon icon="stream" />
                 {{ $t("Status Pages") }}
             </router-link>
+            <router-link to="/incidents" class="nav-link">
+                <font-awesome-icon icon="info-circle" />
+                {{ $t("Incidents") }}
+            </router-link>
             <router-link to="/maintenance" class="nav-link">
                 <font-awesome-icon icon="wrench" />
                 {{ $t("Maintenance") }}

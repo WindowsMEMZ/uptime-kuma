@@ -1,3 +1,4 @@
+const incidentService = require("../incident-service");
 const { BeanModel } = require("redbean-node/dist/bean-model");
 const { R } = require("redbean-node");
 const cheerio = require("cheerio");
@@ -316,13 +317,7 @@ class StatusPage extends BeanModel {
     static async getStatusPageData(statusPage) {
         const config = await statusPage.toPublicJSON();
 
-        // All active incidents
-        let incidents = await R.find(
-            "incident",
-            "pin = 1 AND active = 1 AND status_page_id = ? ORDER BY created_date DESC",
-            [statusPage.id]
-        );
-        incidents = incidents.map((i) => i.toPublicJSON());
+        const incidents = await incidentService.activeForPage(statusPage.id);
 
         let maintenanceList = await StatusPage.getMaintenanceList(statusPage.id);
 
@@ -518,42 +513,31 @@ class StatusPage extends BeanModel {
      * @returns {Promise<object>} Paginated incident data with cursor
      */
     static async getIncidentHistory(statusPageId, cursor = null, isPublic = true) {
-        let incidents;
-
+        const query = incidentService.pageQuery(statusPageId);
         if (cursor) {
-            incidents = await R.find(
-                "incident",
-                " status_page_id = ? AND created_date < ? ORDER BY created_date DESC LIMIT ? ",
-                [statusPageId, cursor, INCIDENT_PAGE_SIZE]
-            );
-        } else {
-            incidents = await R.find("incident", " status_page_id = ? ORDER BY created_date DESC LIMIT ? ", [
-                statusPageId,
-                INCIDENT_PAGE_SIZE,
-            ]);
+            const [date, id] = cursor.split("|");
+            query.andWhere(function () {
+                this.where("created_date", "<", date);
+                if (id && Number.isSafeInteger(Number(id))) {
+                    this.orWhere(function () {
+                        this.where("created_date", date).where("id", "<", Number(id));
+                    });
+                }
+            });
         }
-
-        const total = await R.count("incident", " status_page_id = ? ", [statusPageId]);
-
-        const lastIncident = incidents[incidents.length - 1];
-        let nextCursor = null;
-        let hasMore = false;
-
-        if (lastIncident) {
-            const moreCount = await R.count("incident", " status_page_id = ? AND created_date < ? ", [
-                statusPageId,
-                lastIncident.created_date,
-            ]);
-            hasMore = moreCount > 0;
-            if (hasMore) {
-                nextCursor = lastIncident.created_date;
-            }
-        }
-
+        const rows = await query
+            .orderBy("created_date", "desc")
+            .orderBy("id", "desc")
+            .limit(INCIDENT_PAGE_SIZE + 1);
+        const hasMore = rows.length > INCIDENT_PAGE_SIZE;
+        const incidents = rows.slice(0, INCIDENT_PAGE_SIZE);
+        const last = incidents.at(-1);
+        const [{ total }] = await incidentService.pageQuery(statusPageId).count("id as total");
         return {
-            incidents: incidents.map((i) => i.toPublicJSON()),
-            total,
-            nextCursor,
+            incidents: await incidentService.serialize(incidents),
+            activeIncidents: await incidentService.activeForPage(statusPageId),
+            total: Number(total),
+            nextCursor: hasMore ? `${last.created_date}|${last.id}` : null,
             hasMore,
         };
     }

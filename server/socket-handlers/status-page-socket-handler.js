@@ -1,3 +1,4 @@
+const incidentService = require("../incident-service");
 const { R } = require("redbean-node");
 const { checkLogin } = require("../util");
 const dayjs = require("dayjs");
@@ -44,10 +45,11 @@ module.exports.statusPageSocketHandler = (socket) => {
             let incidentBean;
 
             if (incident.id) {
-                incidentBean = await R.findOne("incident", " id = ? AND status_page_id = ? ", [
-                    incident.id,
-                    statusPageID,
-                ]);
+                const row = await incidentService.pageQuery(statusPageID).where("id", incident.id).first();
+                if (!row) {
+                    throw new Error("Incident not found or access denied");
+                }
+                incidentBean = await R.load("incident", row.id);
             }
 
             if (incidentBean == null) {
@@ -59,7 +61,9 @@ module.exports.statusPageSocketHandler = (socket) => {
             incidentBean.style = incident.style;
             incidentBean.pin = true;
             incidentBean.active = true;
-            incidentBean.status_page_id = statusPageID;
+            if (!incident.id) {
+                incidentBean.status_page_id = statusPageID;
+            }
 
             if (incident.id) {
                 incidentBean.last_updated_date = R.isoDateTime(dayjs.utc());
@@ -67,7 +71,9 @@ module.exports.statusPageSocketHandler = (socket) => {
                 incidentBean.created_date = R.isoDateTime(dayjs.utc());
             }
 
+            validateIncident(incident);
             await R.store(incidentBean);
+            await syncProgress(incidentBean);
 
             callback({
                 ok: true,
@@ -87,7 +93,8 @@ module.exports.statusPageSocketHandler = (socket) => {
 
             let statusPageID = await StatusPage.slugToID(slug);
 
-            await R.exec("UPDATE incident SET pin = 0 WHERE pin = 1 AND status_page_id = ? ", [statusPageID]);
+            await incidentService.pageQuery(statusPageID).update({ pin: 0 });
+            incidentService.changed();
 
             callback({
                 ok: true,
@@ -135,7 +142,8 @@ module.exports.statusPageSocketHandler = (socket) => {
                 return;
             }
 
-            let bean = await R.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            const row = await incidentService.pageQuery(statusPageID).where("id", incidentID).first();
+            let bean = row ? await R.load("incident", row.id) : null;
             if (!bean) {
                 callback({
                     ok: false,
@@ -165,9 +173,10 @@ module.exports.statusPageSocketHandler = (socket) => {
             bean.content = incident.content;
             bean.style = incident.style;
             bean.pin = incident.pin !== false;
-            bean.lastUpdatedDate = R.isoDateTime(dayjs.utc());
+            bean.last_updated_date = R.isoDateTime(dayjs.utc());
 
             await R.store(bean);
+            await syncProgress(bean);
 
             callback({
                 ok: true,
@@ -198,7 +207,8 @@ module.exports.statusPageSocketHandler = (socket) => {
                 return;
             }
 
-            let bean = await R.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            const row = await incidentService.pageQuery(statusPageID).where("id", incidentID).first();
+            let bean = row ? await R.load("incident", row.id) : null;
             if (!bean) {
                 callback({
                     ok: false,
@@ -208,7 +218,7 @@ module.exports.statusPageSocketHandler = (socket) => {
                 return;
             }
 
-            await R.trash(bean);
+            await incidentService.action(bean.id, "delete");
 
             callback({
                 ok: true,
@@ -238,7 +248,8 @@ module.exports.statusPageSocketHandler = (socket) => {
                 return;
             }
 
-            let bean = await R.findOne("incident", " id = ? AND status_page_id = ? ", [incidentID, statusPageID]);
+            const row = await incidentService.pageQuery(statusPageID).where("id", incidentID).first();
+            let bean = row ? await R.load("incident", row.id) : null;
             if (!bean) {
                 callback({
                     ok: false,
@@ -248,7 +259,8 @@ module.exports.statusPageSocketHandler = (socket) => {
                 return;
             }
 
-            await bean.resolve();
+            await incidentService.action(bean.id, "resolve");
+            bean = await R.load("incident", bean.id);
 
             callback({
                 ok: true,
@@ -497,8 +509,10 @@ module.exports.statusPageSocketHandler = (socket) => {
                 // No need to delete records from `status_page_cname`, because it has cascade foreign key.
                 // But for incident & group, it is hard to add cascade foreign key during migration, so they have to be deleted manually.
 
-                // Delete incident
-                await R.exec("DELETE FROM incident WHERE status_page_id = ? ", [statusPageID]);
+                // Retain shared incident timelines when one of their pages is deleted.
+                await R.knex("incident").where("status_page_id", statusPageID).update({ status_page_id: null });
+                await R.knex("incident_status_page").where("status_page_id", statusPageID).delete();
+                incidentService.changed();
 
                 // Delete group
                 await R.exec("DELETE FROM `group` WHERE status_page_id = ? ", [statusPageID]);
@@ -544,4 +558,31 @@ function checkSlug(slug) {
     if (!slug.match(/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/)) {
         throw new Error("Invalid Slug");
     }
+}
+
+/**
+ * Keep legacy inline editing synchronized with the latest timeline entry.
+ * @param {object} bean Incident bean
+ * @returns {Promise<void>}
+ */
+async function syncProgress(bean) {
+    const latest = await R.knex("incident_update")
+        .where("incident_id", bean.id)
+        .orderBy("created_date", "desc")
+        .orderBy("id", "desc")
+        .first();
+    const now = R.isoDateTimeMillis(dayjs.utc());
+    if (latest) {
+        await R.knex("incident_update")
+            .where("id", latest.id)
+            .update({ content: bean.content, last_updated_date: now });
+    } else {
+        await R.knex("incident_update").insert({
+            incident_id: bean.id,
+            content: bean.content,
+            created_date: bean.created_date,
+        });
+    }
+    const monitors = await R.knex("incident_monitor").where("incident_id", bean.id);
+    incidentService.changed(monitors.map((monitor) => monitor.monitor_id));
 }

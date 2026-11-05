@@ -1,3 +1,4 @@
+const incidentService = require("../incident-service");
 let express = require("express");
 const { allowDevAllOrigin, allowAllOrigin, percentageToColor, filterAndJoin, sendHttpError } = require("../util");
 const { R } = require("redbean-node");
@@ -413,14 +414,27 @@ router.all("/api/push/:pushToken", async (request, response) => {
             msg = "Monitor under maintenance";
             bean.status = MAINTENANCE;
         } else {
+            const previousPush =
+                previousHeartbeat?.msg === "Status overridden by incident"
+                    ? await incidentService.lastPush(monitor.id)
+                    : null;
             determineStatus(
                 statusFromParam,
-                previousHeartbeat,
+                previousPush || previousHeartbeat,
                 monitor.maxretries,
                 monitor.isUpsideDown(),
                 bean,
                 isExplicitDown
             );
+        }
+
+        await incidentService.recordPush(monitor.id, bean);
+        const incidentOverride = await incidentService.monitorOverride(monitor.id);
+        if (incidentOverride !== null) {
+            bean.status = incidentOverride;
+            bean.msg = "Status overridden by incident";
+            bean.retries = 0;
+            bean.ping = null;
         }
 
         // Calculate uptime

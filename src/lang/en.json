@@ -369,7 +369,7 @@
     "Customize": "Customize",
     "Custom Footer": "Custom Footer",
     "Custom CSS": "Custom CSS",
-    "deleteIncidentMsg": "Are you sure you want to delete this incident?",
+    "deleteIncidentMsg": "Delete this incident and all its progress?",
     "deleteStatusPageMsg": "Are you sure want to delete this status page?",
     "Proxies": "Proxies",
     "default": "Default",
@@ -1660,5 +1660,15 @@
     "statusColorsDescription": "Shared by the dashboard and all public status pages. Each theme uses its own palette. Restore defaults, then save to apply them.",
     "Pending / Partial outage": "Pending / Partial outage",
     "Restore default colors": "Restore default colors",
-    "No data": "No data"
+    "No data": "No data",
+    "Incidents": "Incidents",
+    "Progress": "Progress",
+    "Add Progress": "Add Progress",
+    "Progress History": "Progress History",
+    "Keep detected status": "Keep detected status",
+    "Override as maintenance": "Override as maintenance",
+    "Override as DOWN": "Override as DOWN",
+    "Reopen Incident": "Reopen Incident",
+    "Edited": "Edited",
+    "incidentOverrideDescription": "Status overrides apply while the incident is active. DOWN takes precedence when incidents overlap."
 }

@@ -46,8 +46,7 @@
                             </button>
                         </div>
                     </div>
-                    <!-- eslint-disable-next-line vue/no-v-html-->
-                    <div class="incident-content mt-1" v-html="getIncidentHTML(incident.content)"></div>
+                    <IncidentTimeline class="incident-content mt-1" :incident="incident" />
                     <div class="incident-meta text-muted small mt-2">
                         <div>{{ $t("createdAt", { date: datetime(incident.createdDate) }) }}</div>
                         <div v-if="incident.lastUpdatedDate">
@@ -61,12 +60,12 @@
 </template>
 
 <script>
-import { marked } from "marked";
-import DOMPurify from "dompurify";
+import IncidentTimeline from "./IncidentTimeline.vue";
 import datetimeMixin from "../mixins/datetime";
 
 export default {
     name: "IncidentHistory",
+    components: { IncidentTimeline },
     mixins: [datetimeMixin],
     props: {
         incidents: {
@@ -83,19 +82,6 @@ export default {
         },
     },
     emits: ["edit-incident", "delete-incident", "resolve-incident"],
-    methods: {
-        /**
-         * Get sanitized HTML for incident content
-         * @param {string} content - Markdown content
-         * @returns {string} Sanitized HTML
-         */
-        getIncidentHTML(content) {
-            if (content != null) {
-                return DOMPurify.sanitize(marked(content));
-            }
-            return "";
-        },
-    },
 };
 </script>
 

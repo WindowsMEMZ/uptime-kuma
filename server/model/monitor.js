@@ -1,3 +1,4 @@
+const incidentService = require("../incident-service");
 const dayjs = require("dayjs");
 const axios = require("axios");
 const { setTimeout, clearTimeout } = require("unlimited-timeout");
@@ -533,8 +534,13 @@ class Monitor extends BeanModel {
                 this.timeout = this.interval * 0.8;
             }
 
+            const incidentOverride = await incidentService.monitorOverride(this.id);
+            let restoredPush = false;
             try {
-                if (await Monitor.isUnderMaintenance(this.id)) {
+                if (incidentOverride !== null) {
+                    bean.msg = "Status overridden by incident";
+                    bean.status = incidentOverride;
+                } else if (await Monitor.isUnderMaintenance(this.id)) {
                     bean.msg = "Monitor under maintenance";
                     bean.status = MAINTENANCE;
                 } else if (this.type === "http" || this.type === "keyword" || this.type === "json-query") {
@@ -772,15 +778,28 @@ class Monitor extends BeanModel {
                     );
                     const bufferTime = 1000; // 1s buffer to accommodate clock differences
 
-                    if (previousBeat) {
-                        const msSinceLastBeat = dayjs.utc().valueOf() - dayjs.utc(previousBeat.time).valueOf();
+                    const pushBeat =
+                        (await incidentService.lastPush(this.id)) ||
+                        (previousBeat?.msg === "Status overridden by incident" ? null : previousBeat);
+                    if (pushBeat) {
+                        const msSinceLastBeat = dayjs.utc().valueOf() - dayjs.utc(pushBeat.time).valueOf();
 
                         log.debug("monitor", `[${this.name}] msSinceLastBeat = ${msSinceLastBeat}`);
 
                         // If the previous beat was down or pending we use the regular
                         // beatInterval/retryInterval in the setTimeout further below
                         if (
-                            previousBeat.status !== (this.isUpsideDown() ? DOWN : UP) ||
+                            previousBeat?.msg === "Status overridden by incident" &&
+                            msSinceLastBeat <= beatInterval * 1000 + bufferTime
+                        ) {
+                            bean.status = pushBeat.status;
+                            bean.msg = pushBeat.msg;
+                            bean.ping = pushBeat.ping;
+                            retries = pushBeat.retries || 0;
+                            restoredPush = true;
+                            beatInterval = Math.max(1, (beatInterval * 1000 - msSinceLastBeat + bufferTime) / 1000);
+                        } else if (
+                            pushBeat.status !== (this.isUpsideDown() ? DOWN : UP) ||
                             msSinceLastBeat > beatInterval * 1000 + bufferTime
                         ) {
                             bean.duration = Math.round(msSinceLastBeat / 1000);
@@ -929,7 +948,7 @@ class Monitor extends BeanModel {
                     throw new Error("Unknown Monitor Type");
                 }
 
-                if (this.isUpsideDown()) {
+                if (!restoredPush && incidentOverride === null && this.isUpsideDown()) {
                     bean.status = flipStatus(bean.status);
 
                     if (bean.status === DOWN) {
@@ -937,7 +956,9 @@ class Monitor extends BeanModel {
                     }
                 }
 
-                retries = 0;
+                if (!restoredPush) {
+                    retries = 0;
+                }
             } catch (error) {
                 if (error?.name === "CanceledError") {
                     bean.msg = `timeout by AbortSignal (${this.timeout}s)`;
@@ -982,6 +1003,14 @@ class Monitor extends BeanModel {
                 }
             }
 
+            // Re-read after a slow check so an incident change takes effect before publishing.
+            const currentOverride = await incidentService.monitorOverride(this.id);
+            if (currentOverride !== null) {
+                bean.status = currentOverride;
+                bean.msg = "Status overridden by incident";
+                bean.ping = null;
+                retries = 0;
+            }
             bean.retries = retries;
 
             log.debug("monitor", `[${this.name}] Check isImportant`);
@@ -1116,11 +1145,21 @@ class Monitor extends BeanModel {
             }
         };
 
+        let checking = false;
+        let checkRequested = false;
         /**
-         * Get a heartbeat and handle errors7
-         * @returns {void}
+         * Run checks sequentially, coalescing immediate refresh requests.
+         * @returns {Promise<void>}
          */
         const safeBeat = async () => {
+            if (this.isStop) {
+                return;
+            }
+            if (checking) {
+                checkRequested = true;
+                return;
+            }
+            checking = true;
             try {
                 await beat();
             } catch (e) {
@@ -1132,6 +1171,21 @@ class Monitor extends BeanModel {
                     log.info("monitor", "Try to restart the monitor");
                     this.heartbeatInterval = setTimeout(safeBeat, this.interval * 1000);
                 }
+            } finally {
+                checking = false;
+                if (checkRequested && !this.isStop) {
+                    checkRequested = false;
+                    clearTimeout(this.heartbeatInterval);
+                    this.heartbeatInterval = setTimeout(safeBeat, 0);
+                }
+            }
+        };
+        this.requestImmediateCheck = () => {
+            clearTimeout(this.heartbeatInterval);
+            if (checking) {
+                checkRequested = true;
+            } else if (!this.isStop) {
+                this.heartbeatInterval = setTimeout(safeBeat, 0);
             }
         };
 

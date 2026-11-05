@@ -1501,7 +1501,7 @@
     "Please input title": "请输入标题",
     "Please input content": "请输入内容",
     "slug is not found": "路径未找到",
-    "deleteIncidentMsg": "确认要删除该事件吗？",
+    "deleteIncidentMsg": "删除此事件及其所有进度记录？",
     "Resolved": "已解决",
     "Resolve": "解决",
     "Edit Incident": "编辑事件",
@@ -1790,5 +1790,15 @@
     "statusColorsDescription": "内部页面和所有外部状态页共用此配置，浅色和深色模式分别使用对应颜色。恢复默认后需保存才会生效。",
     "Pending / Partial outage": "重试中／部分故障",
     "Restore default colors": "恢复默认颜色",
-    "No data": "无数据"
+    "No data": "无数据",
+    "Incidents": "事件",
+    "Progress": "进度",
+    "Add Progress": "添加进度",
+    "Progress History": "进度记录",
+    "Keep detected status": "不覆盖",
+    "Override as maintenance": "覆盖为维护",
+    "Override as DOWN": "覆盖为 DOWN",
+    "Reopen Incident": "重新开启事件",
+    "Edited": "已编辑",
+    "incidentOverrideDescription": "状态覆盖在事件进行期间生效。多个事件同时覆盖时，DOWN 优先。"
 }

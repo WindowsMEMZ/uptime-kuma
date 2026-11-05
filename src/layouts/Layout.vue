@@ -74,6 +74,16 @@
                             <!-- Functions -->
                             <li>
                                 <router-link
+                                    to="/incidents"
+                                    class="dropdown-item"
+                                    :class="{ active: $route.path.startsWith('/incidents') }"
+                                >
+                                    <font-awesome-icon icon="info-circle" />
+                                    {{ $t("Incidents") }}
+                                </router-link>
+                            </li>
+                            <li>
+                                <router-link
                                     to="/maintenance"
                                     class="dropdown-item"
                                     :class="{ active: $route.path.includes('manage-maintenance') }"
