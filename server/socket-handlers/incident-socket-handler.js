@@ -29,8 +29,8 @@ module.exports.incidentSocketHandler = (socket) => {
         ),
     }));
     handle("saveManagedIncident", async (input) => ({ incidentID: await incidents.save(input) }));
-    handle("saveIncidentUpdate", async (incidentID, updateID, content) => {
-        await incidents.saveUpdate(incidentID, updateID, content);
+    handle("saveIncidentUpdate", async (incidentID, updateID, content, label) => {
+        await incidents.saveUpdate(incidentID, updateID, content, label);
     });
     handle("managedIncidentAction", async (incidentID, action) => {
         await incidents.action(incidentID, action);

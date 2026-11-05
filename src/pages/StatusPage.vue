@@ -351,10 +351,9 @@
                     </div>
 
                     <div v-if="editMode" class="mt-3">
-                        <button class="btn btn-light me-2" @click="resolveIncident(activeIncident)">
-                            <font-awesome-icon icon="check" />
-                            {{ $t("Resolve") }}
-                        </button>
+                        <router-link :to="`/incidents/${activeIncident.id}`" class="btn btn-light me-2">
+                            {{ $t("Add Progress") }}
+                        </router-link>
                         <button class="btn btn-light me-2" @click="editIncident(activeIncident)">
                             <font-awesome-icon icon="edit" />
                             {{ $t("Edit") }}
@@ -512,7 +511,6 @@
                                 :loading="incidentHistoryLoading"
                                 @edit-incident="$refs.incidentManageModal.showEdit($event)"
                                 @delete-incident="$refs.incidentManageModal.showDelete($event)"
-                                @resolve-incident="resolveIncident"
                             />
                         </div>
                     </div>
@@ -875,7 +873,7 @@ export default {
          * @returns {number} Number of past incidents
          */
         pastIncidentCount() {
-            return this.incidentHistory.filter((i) => !(i.active && i.pin)).length;
+            return this.pastIncidents.length;
         },
 
         /**
@@ -883,9 +881,13 @@ export default {
          * Active+pinned incidents are shown separately at the top, not in this section
          * @returns {object} Incidents grouped by date string
          */
+        pastIncidents() {
+            const displayedIDs = new Set(this.activeIncidentList.map((incident) => incident.id));
+            return this.incidentHistory.filter((incident) => !displayedIDs.has(incident.id));
+        },
         groupedIncidentHistory() {
             const groups = {};
-            const pastIncidents = this.incidentHistory.filter((i) => !(i.active && i.pin));
+            const pastIncidents = this.pastIncidents;
             for (const incident of pastIncidents) {
                 const dateKey = this.formatDateKey(incident.createdDate);
                 if (!groups[dateKey]) {
@@ -1505,20 +1507,6 @@ export default {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
-            });
-        },
-
-        /**
-         * Resolve an incident
-         * @param {object} incident - The incident to resolve
-         * @returns {void}
-         */
-        resolveIncident(incident) {
-            this.$root.getSocket().emit("resolveIncident", this.slug, incident.id, (res) => {
-                this.$root.toastRes(res);
-                if (res.ok) {
-                    this.loadIncidentHistory();
-                }
             });
         },
     },

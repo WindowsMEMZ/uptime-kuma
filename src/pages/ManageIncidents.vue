@@ -12,7 +12,7 @@
                 <div>
                     <router-link :to="`/incidents/${incident.id}`" class="h5">{{ incident.title }}</router-link>
                     <div class="small mt-1">
-                        {{ incident.active ? $t("Active") : $t("Resolved") }} ·
+                        {{ $t(`incidentLabel-${incident.label}`) }} ·
                         {{ $root.datetime(incident.lastUpdatedDate || incident.createdDate) }}
                     </div>
                 </div>

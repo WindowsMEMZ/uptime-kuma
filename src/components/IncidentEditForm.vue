@@ -28,6 +28,12 @@
         <div class="form-text">
             {{ $t("markdownSupported") }}
         </div>
+        <IncidentLabelSelect
+            v-if="!modelValue.id"
+            id="inline-incident-label"
+            :model-value="modelValue.label || 'updated'"
+            @update:model-value="updateField('label', $event)"
+        />
 
         <div class="mt-3">
             <button class="btn btn-light me-2" data-testid="post-incident-button" @click="$emit('post')">
@@ -88,8 +94,11 @@
 </template>
 
 <script>
+import IncidentLabelSelect from "./IncidentLabelSelect.vue";
+
 export default {
     name: "IncidentEditForm",
+    components: { IncidentLabelSelect },
     props: {
         modelValue: {
             type: Object,

@@ -20,6 +20,7 @@
                         required
                     ></textarea>
                     <div class="form-text">{{ $t("markdownSupported") }}</div>
+                    <IncidentLabelSelect id="incident-initial-label" v-model="initialLabel" />
                 </div>
                 <h2 class="h4 mt-4">{{ $t("Affected Monitors") }}</h2>
                 <label for="incident-monitors" class="form-label">{{ $t("Pick Affected Monitors...") }}</label>
@@ -69,19 +70,13 @@
             <template v-if="!isNew">
                 <div class="shadow-box mb-4">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 class="h4 me-auto mb-0">{{ incident.active ? $t("Active") : $t("Resolved") }}</h2>
-                        <button
-                            class="btn btn-normal"
-                            :disabled="busy"
-                            @click="changeState(incident.active ? 'resolve' : 'reopen')"
-                        >
-                            {{ incident.active ? $t("Resolve") : $t("Reopen Incident") }}
-                        </button>
+                        <h2 class="h4 me-auto mb-0">{{ $t(`incidentLabel-${incident.label}`) }}</h2>
                         <button class="btn btn-danger" :disabled="busy" @click="$refs.confirmDelete.show()">
                             {{ $t("Delete") }}
                         </button>
                     </div>
-                    <form v-if="incident.active" @submit.prevent="saveProgress(null, progress)">
+                    <form @submit.prevent="saveProgress(null, progress)">
+                        <IncidentLabelSelect id="incident-progress-label" v-model="progressLabel" />
                         <label for="incident-progress" class="form-label">{{ $t("Add Progress") }}</label>
                         <textarea
                             id="incident-progress"
@@ -103,6 +98,7 @@
                         data-testid="incident-progress-entry"
                     >
                         <div class="small mb-2">
+                            <IncidentLabel :label="update.label" class="me-2" />
                             {{ $root.datetime(update.createdDate) }}
                             <span v-if="update.lastUpdatedDate">
                                 · {{ $t("Edited") }} {{ $root.datetime(update.lastUpdatedDate) }}
@@ -152,9 +148,11 @@
 import VueMultiselect from "vue-multiselect";
 import Confirm from "../components/Confirm.vue";
 import IncidentTimeline from "../components/IncidentTimeline.vue";
+import IncidentLabelSelect from "../components/IncidentLabelSelect.vue";
+import IncidentLabel from "../components/IncidentLabel.vue";
 
 export default {
-    components: { VueMultiselect, Confirm, IncidentTimeline },
+    components: { VueMultiselect, Confirm, IncidentTimeline, IncidentLabelSelect, IncidentLabel },
     data: () => ({
         incident: null,
         loading: true,
@@ -165,6 +163,8 @@ export default {
         progress: "",
         editingUpdate: null,
         editedContent: "",
+        initialLabel: "updated",
+        progressLabel: "updated",
     }),
     computed: {
         listsReady() {
@@ -221,6 +221,8 @@ export default {
                 }
                 this.incident.updates = current.updates;
                 this.incident.active = current.active;
+                this.incident.label = current.label;
+                this.incident.resolvedDate = current.resolvedDate;
                 this.incident.lastUpdatedDate = current.lastUpdatedDate;
             });
         },
@@ -276,6 +278,7 @@ export default {
                 id: this.incident.id,
                 title: this.incident.title,
                 content: this.incident.content,
+                label: this.initialLabel,
                 monitors: this.selectedMonitors.map((monitor) => ({
                     id: monitor.id,
                     overrideStatus: this.overrides[monitor.id] ?? null,
@@ -291,9 +294,16 @@ export default {
             }
         },
         async saveProgress(updateID, content) {
-            const res = await this.request("saveIncidentUpdate", this.incident.id, updateID, content);
+            const res = await this.request(
+                "saveIncidentUpdate",
+                this.incident.id,
+                updateID,
+                content,
+                this.progressLabel
+            );
             if (res.ok) {
                 this.progress = "";
+                this.progressLabel = "updated";
                 this.editingUpdate = null;
                 this.load();
             }

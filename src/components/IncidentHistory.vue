@@ -23,14 +23,6 @@
                         <h5 class="incident-title mb-0">{{ incident.title }}</h5>
                         <div v-if="editMode" class="incident-actions">
                             <button
-                                v-if="incident.active"
-                                class="btn btn-success btn-sm me-1"
-                                :title="$t('Resolve')"
-                                @click="$emit('resolve-incident', incident)"
-                            >
-                                <font-awesome-icon icon="check" />
-                            </button>
-                            <button
                                 class="btn btn-outline-secondary btn-sm me-1"
                                 :title="$t('Edit')"
                                 @click="$emit('edit-incident', incident)"
@@ -81,7 +73,7 @@ export default {
             default: false,
         },
     },
-    emits: ["edit-incident", "delete-incident", "resolve-incident"],
+    emits: ["edit-incident", "delete-incident"],
 };
 </script>
 

@@ -90,6 +90,7 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
         await page.goto("./incidents/new");
         await page.locator("#incident-title").fill("Network incident");
         await page.locator("#incident-initial-progress").fill("Investigating the network");
+        await page.locator("#incident-initial-label").selectOption("investigating");
         await select(page, "incident-monitors", "Incident HTTP");
         await select(page, "incident-monitors", "Incident Push");
         await page.locator(`#incident-override-${httpID}`).selectOption("3");
@@ -116,9 +117,12 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
             .toBe(3);
 
         const original = db.prepare("SELECT * FROM incident_update WHERE incident_id=?").get(incidentID);
+        await page.locator("#incident-progress-label").selectOption("identified");
         await page.locator("#incident-progress").fill("The cause has been identified");
         await page.getByRole("button", { name: "Add Progress", exact: true }).click();
         await expect(page.getByTestId("incident-progress-entry")).toHaveCount(2);
+        await expect(page.locator("#incident-progress-label")).toHaveValue("updated");
+        await expect(publicPage.getByTestId("incident").locator(".incident-label-investigating")).toBeVisible();
         const oldest = page.getByTestId("incident-progress-entry").last();
         await oldest.getByRole("button", { name: "Edit", exact: true }).click();
         await oldest.locator("textarea").fill("Investigation started; corrected description");
@@ -152,16 +156,47 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
         });
         expect(other.ok).toBe(true);
         await expect.poll(() => latestStatus(httpID)).toMatchObject({ status: 0, retries: 0 });
-        await page.getByRole("button", { name: "Resolve", exact: true }).click();
-        await expect(page.getByRole("button", { name: "Reopen Incident" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Resolve", exact: true })).toHaveCount(0);
+        await page.locator("#incident-progress-label").selectOption("resolved");
+        await page.locator("#incident-progress").fill("Service restored");
+        await page.getByRole("button", { name: "Add Progress", exact: true }).click();
+        await expect(page.getByTestId("incident-progress-entry")).toHaveCount(3);
         await expect.poll(() => latestStatus(httpID)?.status).toBe(0);
-        expect((await request(page, "managedIncidentAction", other.incidentID, "resolve")).ok).toBe(true);
+        expect((await request(page, "saveIncidentUpdate", other.incidentID, null, "Restored", "resolved")).ok).toBe(
+            true
+        );
         await expect.poll(() => latestStatus(httpID)?.status).toBe(1);
         await expect.poll(() => latestStatus(pushID)?.status).toBe(1);
         await page.request.get(pushURL);
         await expect.poll(() => latestStatus(pushID)?.status).toBe(1);
+        await expect(publicPage.getByTestId("incident").locator(".incident-label-resolved")).toBeVisible({
+            timeout: 15000,
+        });
+        await expect(publicPage.getByTestId("incident")).toContainText("corrected description");
+        await expect(publicPage.locator(".past-incidents-section")).toHaveCount(0);
+        await publicPage.evaluate(() => {
+            const root = document.querySelector("#app")._vnode.component.proxy;
+            root.statusPageTheme = "dark";
+        });
+        const darkCard = publicPage.getByTestId("incident");
+        await expect(darkCard).toHaveCSS("color", "rgb(228, 232, 239)");
+        const brightness = await darkCard.evaluate((element) => {
+            const color = getComputedStyle(element).backgroundColor;
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, 1, 1);
+            return Math.max(...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3));
+        });
+        expect(brightness).toBeLessThan(85);
+        await publicPage.screenshot({ path: testInfo.outputPath("incident-dark.png"), fullPage: true });
+        // Expiry does not need another edit or a scheduled cleanup job.
+        const expired = new Date(Date.now() - 73 * 3600000).toISOString().replace("T", " ").replace("Z", "");
+        db.prepare("UPDATE incident SET resolved_date=? WHERE id=?").run(expired, incidentID);
         await expect(publicPage.getByTestId("incident")).toHaveCount(0, { timeout: 15000 });
-        await expect(publicPage.locator(".past-incidents-section")).toContainText("corrected description");
+        const history = await (await publicPage.request.get("/api/status-page/incident-one/incident-history")).json();
+        expect(history.incidents).toHaveLength(0);
+        expect(db.prepare("SELECT id FROM incident WHERE id=?").get(incidentID)).toBeTruthy();
 
         // No-override assignments preserve normal monitoring, including after reopening.
         const current = (await request(page, "getManagedIncidents")).incidents.find((item) => item.id === incidentID);
@@ -170,11 +205,21 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
                 await request(page, "saveManagedIncident", {
                     ...current,
                     monitors: [{ id: httpID, overrideStatus: null }],
-                    statusPageIDs: [],
+                    statusPageIDs: current.statusPageIDs,
                 })
             ).ok
         ).toBe(true);
-        expect((await request(page, "managedIncidentAction", incidentID, "reopen")).ok).toBe(true);
+        // A new default-label update reopens a resolved incident.
+        await page.locator("#incident-progress").fill("Checking again after resolution");
+        await page.getByRole("button", { name: "Add Progress", exact: true }).click();
+        await expect(page.getByTestId("incident-progress-entry")).toHaveCount(4);
+        expect(db.prepare("SELECT active,resolved_date FROM incident WHERE id=?").get(incidentID)).toMatchObject({
+            active: 1,
+            resolved_date: null,
+        });
+        await expect(publicPage.getByTestId("incident").locator(".incident-label-updated")).toBeVisible({
+            timeout: 15000,
+        });
         await expect.poll(() => latestStatus(httpID)?.status).toBe(1);
         const invalid = await request(page, "saveManagedIncident", {
             ...current,

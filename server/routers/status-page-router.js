@@ -28,7 +28,7 @@ router.get("/status/:slug", cache("5 minutes"), async (request, response) => {
     await StatusPage.handleStatusPageResponse(response, server.indexHTML, slug);
 });
 
-router.get("/status/:slug/rss", cache("5 minutes"), async (request, response) => {
+router.get("/status/:slug/rss", cache("5 seconds"), async (request, response) => {
     let slug = request.params.slug;
     slug = slug.toLowerCase();
     await StatusPage.handleStatusPageRSSResponse(response, slug, request);
@@ -45,7 +45,7 @@ router.get("/status-page", cache("5 minutes"), async (request, response) => {
 });
 
 // Status page config, incident, monitor list
-router.get("/api/status-page/:slug", cache("5 minutes"), async (request, response) => {
+router.get("/api/status-page/:slug", cache("5 seconds"), async (request, response) => {
     allowDevAllOrigin(response);
     let slug = request.params.slug;
     slug = slug.toLowerCase();
@@ -166,7 +166,7 @@ router.get("/api/status-page/:slug/incidents", cache("5 seconds"), async (reques
             return;
         }
         response.json({
-            incidentRevision: incidentService.getRevision(),
+            incidentRevision: await incidentService.publicRevision(statusPageID),
             activeIncidents: await incidentService.activeForPage(statusPageID),
         });
     } catch (error) {
@@ -174,7 +174,7 @@ router.get("/api/status-page/:slug/incidents", cache("5 seconds"), async (reques
     }
 });
 
-router.get("/api/status-page/:slug/incident-history", cache("5 minutes"), async (request, response) => {
+router.get("/api/status-page/:slug/incident-history", cache("5 seconds"), async (request, response) => {
     allowDevAllOrigin(response);
 
     try {

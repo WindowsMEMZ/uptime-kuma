@@ -513,7 +513,7 @@ class StatusPage extends BeanModel {
      * @returns {Promise<object>} Paginated incident data with cursor
      */
     static async getIncidentHistory(statusPageId, cursor = null, isPublic = true) {
-        const query = incidentService.pageQuery(statusPageId);
+        const query = incidentService.visibleForPage(statusPageId);
         if (cursor) {
             const [date, id] = cursor.split("|");
             query.andWhere(function () {
@@ -532,7 +532,7 @@ class StatusPage extends BeanModel {
         const hasMore = rows.length > INCIDENT_PAGE_SIZE;
         const incidents = rows.slice(0, INCIDENT_PAGE_SIZE);
         const last = incidents.at(-1);
-        const [{ total }] = await incidentService.pageQuery(statusPageId).count("id as total");
+        const [{ total }] = await incidentService.visibleForPage(statusPageId).count("id as total");
         return {
             incidents: await incidentService.serialize(incidents),
             activeIncidents: await incidentService.activeForPage(statusPageId),

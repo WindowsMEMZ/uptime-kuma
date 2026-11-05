@@ -2,6 +2,7 @@ const { R } = require("redbean-node");
 const dayjs = require("dayjs");
 const apicache = require("./utils/response-cache");
 const { DOWN, MAINTENANCE } = require("../src/util");
+const { INCIDENT_LABELS } = require("../src/incident-status");
 
 let revision = 0;
 let overrideCache = null;
@@ -18,6 +19,42 @@ function pageQuery(statusPageID) {
             R.knex("incident_status_page").select("incident_id").where("status_page_id", statusPageID)
         );
     });
+}
+
+/**
+ * Keep resolved incidents public for exactly three days without deleting history.
+ * @param {number} statusPageID Status page ID
+ * @param {number} now Current UTC timestamp
+ * @returns {import("knex").Knex.QueryBuilder} Visible incidents
+ */
+function visibleForPage(statusPageID, now = Date.now()) {
+    const cutoff = R.isoDateTimeMillis(dayjs.utc(now).subtract(3, "day"));
+    return pageQuery(statusPageID).andWhere(function () {
+        this.where("active", 1).orWhere("resolved_date", ">", cutoff);
+    });
+}
+
+/**
+ * Include automatic expiry in the public revision, even without a manual edit.
+ * @param {number} statusPageID Status page ID
+ * @returns {Promise<string>} Public revision
+ */
+async function publicRevision(statusPageID) {
+    const [{ count }] = await visibleForPage(statusPageID).count("id as count");
+    return `${revision}:${count}`;
+}
+
+/**
+ * Validate the label of newly added progress.
+ * @param {string} value Label
+ * @returns {string} Valid label
+ * @throws {Error} Invalid label
+ */
+function progressLabel(value = "updated") {
+    if (!INCIDENT_LABELS.includes(value)) {
+        throw new Error("Invalid incident label");
+    }
+    return value;
 }
 
 /**
@@ -46,12 +83,15 @@ async function serialize(rows, admin = false) {
             pin: !!row.pin,
             createdDate: row.created_date,
             lastUpdatedDate: row.last_updated_date,
+            resolvedDate: row.resolved_date,
+            label: updates.find((update) => update.incident_id === row.id)?.label || "updated",
             status_page_id: row.status_page_id,
             updates: updates
                 .filter((update) => update.incident_id === row.id)
                 .map((update) => ({
                     id: update.id,
                     content: update.content,
+                    label: update.label,
                     createdDate: update.created_date,
                     lastUpdatedDate: update.last_updated_date,
                 })),
@@ -75,13 +115,13 @@ async function serialize(rows, admin = false) {
 }
 
 /**
- * Get active, pinned incidents independently of history pagination.
+ * Get visible pinned incidents, including recently resolved incidents.
  * @param {number} statusPageID Status page ID
  * @returns {Promise<object[]>} Public incidents
  */
 async function activeForPage(statusPageID) {
     return serialize(
-        await pageQuery(statusPageID).where({ active: 1, pin: 1 }).orderBy("created_date", "desc").orderBy("id", "desc")
+        await visibleForPage(statusPageID).where({ pin: 1 }).orderBy("created_date", "desc").orderBy("id", "desc")
     );
 }
 
@@ -210,6 +250,7 @@ async function save(input) {
         throw new Error("Invalid incident selection");
     }
     const content = input.id ? null : text(input.content, 65535);
+    const label = input.id ? null : progressLabel(input.label);
     const previous = input.id ? await R.knex("incident_monitor").where("incident_id", id(input.id)) : [];
     const incidentID = await R.knex.transaction(async (trx) => {
         if (input.id && !(await trx("incident").where("id", input.id).first())) {
@@ -237,10 +278,11 @@ async function save(input) {
                 content,
                 style: "warning",
                 pin: 1,
-                active: 1,
+                active: label === "resolved" ? 0 : 1,
+                resolved_date: label === "resolved" ? now : null,
                 created_date: now,
             });
-            await trx("incident_update").insert({ incident_id: incidentID, content, created_date: now });
+            await trx("incident_update").insert({ incident_id: incidentID, content, label, created_date: now });
         }
         await trx("incident_monitor").where("incident_id", incidentID).delete();
         await trx("incident_status_page").where("incident_id", incidentID).delete();
@@ -263,11 +305,14 @@ async function save(input) {
  * @param {number} incidentID Incident ID
  * @param {number|null} updateID Entry ID, or null for new progress
  * @param {string} content Progress description
+ * @param {string} label Label for new progress
  * @returns {Promise<void>}
  */
-async function saveUpdate(incidentID, updateID, content) {
+async function saveUpdate(incidentID, updateID, content, label = "updated") {
     id(incidentID);
     content = text(content, 65535);
+    label = progressLabel(label);
+    let stateChanged = false;
     if (updateID !== null) {
         id(updateID);
     }
@@ -285,19 +330,30 @@ async function saveUpdate(incidentID, updateID, content) {
                 throw new Error("Incident update not found");
             }
         } else {
-            if (!incident.active) {
-                throw new Error("Incident is resolved");
-            }
-            await trx("incident_update").insert({ incident_id: incidentID, content, created_date: now });
+            await trx("incident_update").insert({ incident_id: incidentID, content, label, created_date: now });
         }
         const latest = await trx("incident_update")
             .where("incident_id", incidentID)
             .orderBy("created_date", "desc")
             .orderBy("id", "desc")
             .first();
-        await trx("incident").where("id", incidentID).update({ content: latest.content, last_updated_date: now });
+        const active = latest.label !== "resolved";
+        stateChanged = !!incident.active !== active;
+        await trx("incident")
+            .where("id", incidentID)
+            .update({
+                content: latest.content,
+                active: active ? 1 : 0,
+                resolved_date: active
+                    ? null
+                    : !updateID || stateChanged || !incident.resolved_date
+                      ? latest.created_date
+                      : incident.resolved_date,
+                last_updated_date: now,
+            });
     });
-    changed();
+    const monitors = stateChanged ? await R.knex("incident_monitor").where("incident_id", incidentID) : [];
+    changed(monitors.map((monitor) => monitor.monitor_id));
 }
 
 /**
@@ -311,31 +367,32 @@ async function action(incidentID, action) {
     if (!["resolve", "reopen", "delete"].includes(action)) {
         throw new Error("Invalid incident action");
     }
+    if (action !== "delete") {
+        const incident = await R.knex("incident").where("id", incidentID).first();
+        if (!incident) {
+            throw new Error("Incident not found");
+        }
+        await saveUpdate(incidentID, null, incident.content, action === "resolve" ? "resolved" : "updated");
+        return;
+    }
     const monitors = await R.knex("incident_monitor").where("incident_id", incidentID);
     await R.knex.transaction(async (trx) => {
         if (!(await trx("incident").where("id", incidentID).first())) {
             throw new Error("Incident not found");
         }
-        if (action === "delete") {
-            await trx("incident_update").where("incident_id", incidentID).delete();
-            await trx("incident_monitor").where("incident_id", incidentID).delete();
-            await trx("incident_status_page").where("incident_id", incidentID).delete();
-            await trx("incident").where("id", incidentID).delete();
-        } else {
-            await trx("incident")
-                .where("id", incidentID)
-                .update({
-                    active: action === "reopen" ? 1 : 0,
-                    pin: 1,
-                    last_updated_date: R.isoDateTimeMillis(dayjs.utc()),
-                });
-        }
+        await trx("incident_update").where("incident_id", incidentID).delete();
+        await trx("incident_monitor").where("incident_id", incidentID).delete();
+        await trx("incident_status_page").where("incident_id", incidentID).delete();
+        await trx("incident").where("id", incidentID).delete();
     });
     changed(monitors.map((monitor) => monitor.monitor_id));
 }
 
 module.exports = {
     pageQuery,
+    visibleForPage,
+    publicRevision,
+    progressLabel,
     serialize,
     activeForPage,
     monitorOverride,

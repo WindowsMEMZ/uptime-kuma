@@ -1670,5 +1670,11 @@
     "Override as DOWN": "Override as DOWN",
     "Reopen Incident": "Reopen Incident",
     "Edited": "Edited",
-    "incidentOverrideDescription": "Status overrides apply while the incident is active. DOWN takes precedence when incidents overlap."
+    "incidentOverrideDescription": "Status overrides apply while the incident is active. DOWN takes precedence when incidents overlap.",
+    "Progress Label": "Progress Label",
+    "incidentLabel-updated": "Updated",
+    "incidentLabel-investigating": "Investigating",
+    "incidentLabel-identified": "Identified",
+    "incidentLabel-monitoring": "Monitoring",
+    "incidentLabel-resolved": "Resolved"
 }

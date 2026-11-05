@@ -60,7 +60,10 @@ module.exports.statusPageSocketHandler = (socket) => {
             incidentBean.content = incident.content;
             incidentBean.style = incident.style;
             incidentBean.pin = true;
-            incidentBean.active = true;
+            if (!incident.id) {
+                const label = incidentService.progressLabel(incident.label);
+                incidentBean.active = label !== "resolved";
+            }
             if (!incident.id) {
                 incidentBean.status_page_id = statusPageID;
             }
@@ -68,12 +71,13 @@ module.exports.statusPageSocketHandler = (socket) => {
             if (incident.id) {
                 incidentBean.last_updated_date = R.isoDateTime(dayjs.utc());
             } else {
-                incidentBean.created_date = R.isoDateTime(dayjs.utc());
+                incidentBean.created_date = R.isoDateTimeMillis(dayjs.utc());
+                incidentBean.resolved_date = incidentBean.active ? null : incidentBean.created_date;
             }
 
             validateIncident(incident);
             await R.store(incidentBean);
-            await syncProgress(incidentBean);
+            await syncProgress(incidentBean, incident.label);
 
             callback({
                 ok: true,
@@ -563,9 +567,10 @@ function checkSlug(slug) {
 /**
  * Keep legacy inline editing synchronized with the latest timeline entry.
  * @param {object} bean Incident bean
+ * @param {string} label Label for initial progress
  * @returns {Promise<void>}
  */
-async function syncProgress(bean) {
+async function syncProgress(bean, label = "updated") {
     const latest = await R.knex("incident_update")
         .where("incident_id", bean.id)
         .orderBy("created_date", "desc")
@@ -580,6 +585,7 @@ async function syncProgress(bean) {
         await R.knex("incident_update").insert({
             incident_id: bean.id,
             content: bean.content,
+            label: incidentService.progressLabel(label),
             created_date: bean.created_date,
         });
     }

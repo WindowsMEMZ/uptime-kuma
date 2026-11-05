@@ -3,6 +3,7 @@
         <template v-if="incident.updates?.length">
             <div v-for="update in incident.updates" :key="update.id" class="incident-progress mb-3">
                 <div class="small mb-1">
+                    <IncidentLabel :label="update.label" class="me-2" />
                     <time :datetime="update.createdDate">{{ $root.datetime(update.createdDate) }}</time>
                     <span v-if="update.lastUpdatedDate">· {{ $t("Edited") }}</span>
                 </div>
@@ -18,8 +19,10 @@
 <script>
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import IncidentLabel from "./IncidentLabel.vue";
 
 export default {
+    components: { IncidentLabel },
     props: {
         incident: { type: Object, required: true },
     },

@@ -1800,5 +1800,11 @@
     "Override as DOWN": "覆盖为 DOWN",
     "Reopen Incident": "重新开启事件",
     "Edited": "已编辑",
-    "incidentOverrideDescription": "状态覆盖在事件进行期间生效。多个事件同时覆盖时，DOWN 优先。"
+    "incidentOverrideDescription": "状态覆盖在事件进行期间生效。多个事件同时覆盖时，DOWN 优先。",
+    "Progress Label": "进度标签",
+    "incidentLabel-updated": "已更新",
+    "incidentLabel-investigating": "调查中",
+    "incidentLabel-identified": "已定位",
+    "incidentLabel-monitoring": "监控中",
+    "incidentLabel-resolved": "已解决"
 }

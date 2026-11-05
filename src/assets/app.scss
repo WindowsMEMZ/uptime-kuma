@@ -686,3 +686,23 @@ $shadow-box-padding: 20px;
         color: var(--status-#{$status}) !important;
     }
 }
+
+@each $name,
+    $status
+        in (
+            primary: up,
+            danger: down,
+            warning: pending,
+            info: maintenance,
+            maintenance: maintenance,
+            secondary: unknown,
+            light: unknown,
+            dark: unknown
+        )
+{
+    .dark .incident.status-panel.bg-#{$name} {
+        background-color: color-mix(in srgb, var(--status-#{$status}) 12%, #161b22) !important;
+        color: #e4e8ef !important;
+        border-inline-start: 4px solid var(--status-#{$status});
+    }
+}

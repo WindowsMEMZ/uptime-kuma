@@ -1,6 +1,5 @@
 const { BeanModel } = require("redbean-node/dist/bean-model");
 const { R } = require("redbean-node");
-const dayjs = require("dayjs");
 
 class Incident extends BeanModel {
     /**
@@ -8,10 +7,12 @@ class Incident extends BeanModel {
      * @returns {Promise<void>}
      */
     async resolve() {
-        this.active = false;
-        this.pin = false;
-        this.last_updated_date = R.isoDateTime(dayjs.utc());
-        await R.store(this);
+        await require("../incident-service").action(this.id, "resolve");
+        const incident = await R.load("incident", this.id);
+        this.active = incident.active;
+        this.pin = incident.pin;
+        this.resolved_date = incident.resolved_date;
+        this.last_updated_date = incident.last_updated_date;
     }
 
     /**
