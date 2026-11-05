@@ -50,7 +50,15 @@ async function getPermissions(userID, db = R.knex) {
         throw new Error("You are not logged in.");
     }
     if (user.role !== "member") {
-        return { userID: user.id, role: user.role, monitorIDs: [], statusPageIDs: [], statusPageSlugs: [] };
+        return {
+            userID: user.id,
+            role: user.role,
+            monitorIDs: [],
+            statusPageIDs: [],
+            statusPageSlugs: [],
+            canManageIncidents: true,
+            canManageMaintenance: true,
+        };
     }
     const [monitors, pages] = await Promise.all([
         db("user_monitor_permission").where("user_id", userID).select("monitor_id"),
@@ -59,6 +67,8 @@ async function getPermissions(userID, db = R.knex) {
     return {
         userID: user.id,
         role: user.role,
+        canManageIncidents: !!user.can_manage_incidents,
+        canManageMaintenance: !!user.can_manage_maintenance,
         monitorIDs: monitors.map((row) => Number(row.monitor_id)),
         statusPageIDs: pages.map((row) => Number(row.status_page_id)),
         statusPageSlugs: (
@@ -120,6 +130,35 @@ async function authorize(permissions, event, args) {
     }
     if (permissions.role !== "member") {
         throw new Error("Permission denied.");
+    }
+    if (
+        permissions.canManageIncidents &&
+        [
+            "saveManagedIncident",
+            "saveIncidentUpdate",
+            "managedIncidentAction",
+            "postIncident",
+            "unpinIncident",
+            "editIncident",
+            "deleteIncident",
+            "resolveIncident",
+        ].includes(event)
+    ) {
+        return;
+    }
+    if (
+        permissions.canManageMaintenance &&
+        [
+            "addMaintenance",
+            "editMaintenance",
+            "addMonitorMaintenance",
+            "addMaintenanceStatusPage",
+            "deleteMaintenance",
+            "pauseMaintenance",
+            "resumeMaintenance",
+        ].includes(event)
+    ) {
+        return;
     }
     if (monitorEvents.has(event)) {
         const id = Number(event === "editMonitor" ? args[0]?.id : event.endsWith("MonitorTag") ? args[1] : args[0]);

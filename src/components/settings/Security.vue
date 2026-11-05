@@ -76,9 +76,10 @@
                 </h5>
                 <div class="mb-4">
                     <button class="btn btn-primary me-2" type="button" @click="$refs.TwoFADialog.show()">
-                        {{ $t("2FA Settings") }}
+                        {{ $t("TOTP Settings") }}
                     </button>
                 </div>
+                <Passkeys />
             </div>
 
             <Accounts v-if="$root.canManageShared" />
@@ -147,6 +148,7 @@
 
 <script>
 import Accounts from "./Accounts.vue";
+import Passkeys from "./Passkeys.vue";
 import Confirm from "../../components/Confirm.vue";
 import TwoFADialog from "../../components/TwoFADialog.vue";
 import { authClient } from "../../auth-client";
@@ -154,6 +156,7 @@ import { authClient } from "../../auth-client";
 export default {
     components: {
         Accounts,
+        Passkeys,
         Confirm,
         TwoFADialog,
     },

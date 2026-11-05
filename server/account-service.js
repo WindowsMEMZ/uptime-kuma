@@ -24,16 +24,21 @@ function change(actorID, operation) {
  */
 async function list(actorID) {
     requireOwner(await getPermissions(actorID));
-    const [users, monitors, pages] = await Promise.all([
-        R.knex("better_auth_user").select("id", "username", "role", "twoFactorEnabled").orderBy("username"),
+    const [users, monitors, pages, passkeys] = await Promise.all([
+        R.knex("better_auth_user")
+            .select("id", "username", "role", "twoFactorEnabled", "can_manage_incidents", "can_manage_maintenance")
+            .orderBy("username"),
         R.knex("user_monitor_permission"),
         R.knex("user_status_page_permission"),
+        R.knex("user_passkey").distinct("user_id"),
     ]);
     return users.map((user) => ({
         id: user.id,
         username: user.username,
         role: user.role,
-        twoFactorEnabled: !!user.twoFactorEnabled,
+        twoFactorEnabled: !!user.twoFactorEnabled || passkeys.some((key) => key.user_id === user.id),
+        canManageIncidents: !!user.can_manage_incidents,
+        canManageMaintenance: !!user.can_manage_maintenance,
         monitorIDs: monitors.filter((row) => row.user_id === user.id).map((row) => Number(row.monitor_id)),
         statusPageIDs: pages.filter((row) => row.user_id === user.id).map((row) => Number(row.status_page_id)),
     }));
@@ -106,6 +111,11 @@ function resourceIDs(values) {
 function savePermissions(actorID, userID, input) {
     return change(actorID, async (permissions) => {
         requireOwner(permissions);
+        for (const flag of ["canManageIncidents", "canManageMaintenance"]) {
+            if (input?.[flag] !== undefined && typeof input[flag] !== "boolean") {
+                throw new Error("Invalid resource permissions.");
+            }
+        }
         const monitorIDs = resourceIDs(input?.monitorIDs);
         const statusPageIDs = resourceIDs(input?.statusPageIDs);
         await R.knex.transaction(async (trx) => {
@@ -113,6 +123,12 @@ function savePermissions(actorID, userID, input) {
             if (!user || user.role !== "member") {
                 throw new Error("Permissions can only be assigned to Members.");
             }
+            await trx("better_auth_user")
+                .where("id", userID)
+                .update({
+                    can_manage_incidents: input.canManageIncidents ?? false,
+                    can_manage_maintenance: input.canManageMaintenance ?? false,
+                });
             for (const [table, column, ids, resource] of [
                 ["user_monitor_permission", "monitor_id", monitorIDs, "monitor"],
                 ["user_status_page_permission", "status_page_id", statusPageIDs, "status_page"],
@@ -152,7 +168,9 @@ function setRole(actorID, userID, role) {
             if (!user) {
                 throw new Error("Account not found.");
             }
-            await trx("better_auth_user").where("id", userID).update({ role, updatedAt: new Date() });
+            await trx("better_auth_user")
+                .where("id", userID)
+                .update({ role, can_manage_incidents: false, can_manage_maintenance: false, updatedAt: new Date() });
             await trx("user_monitor_permission").where("user_id", userID).del();
             await trx("user_status_page_permission").where("user_id", userID).del();
         });

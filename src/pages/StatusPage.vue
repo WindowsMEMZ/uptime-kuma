@@ -293,7 +293,7 @@
 
                 <div v-else>
                     <button
-                        v-if="$root.canManageShared"
+                        v-if="$root.canManageIncidents"
                         class="btn btn-primary btn-add-group me-2"
                         data-testid="create-incident-button"
                         @click="createIncident"
@@ -356,7 +356,7 @@
                         </span>
                     </div>
 
-                    <div v-if="editMode && $root.canManageShared" class="mt-3">
+                    <div v-if="editMode && $root.canManageIncidents" class="mt-3">
                         <router-link :to="`/incidents/${activeIncident.id}`" class="btn btn-light me-2">
                             {{ $t("Add Progress") }}
                         </router-link>
@@ -513,7 +513,7 @@
                         <div class="shadow-box incident-list-box">
                             <IncidentHistory
                                 :incidents="dateGroup"
-                                :edit-mode="enableEditMode && $root.canManageShared"
+                                :edit-mode="enableEditMode && $root.canManageIncidents"
                                 :loading="incidentHistoryLoading"
                                 @edit-incident="$refs.incidentManageModal.showEdit($event)"
                                 @delete-incident="$refs.incidentManageModal.showDelete($event)"

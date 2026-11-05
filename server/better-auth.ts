@@ -8,6 +8,7 @@ import { admin } from "better-auth/plugins";
 import { Socket } from "socket.io";
 import { haveIBeenPwned } from "better-auth/plugins";
 import { twoFactor } from "better-auth/plugins";
+import { passkeyTwoFactor } from "./passkey-two-factor";
 import { apiKey } from "@better-auth/api-key";
 import { createAuthMiddleware } from "better-auth/api";
 // @ts-ignore
@@ -135,6 +136,8 @@ function createAuthInstance() {
 
             // Check if the password has been pwned in data breaches
             haveIBeenPwned(haveIBeenPwnedOptions),
+
+            passkeyTwoFactor(),
 
             twoFactor({
                 schema: {

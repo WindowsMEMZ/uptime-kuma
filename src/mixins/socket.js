@@ -723,6 +723,12 @@ export default {
     },
 
     computed: {
+        canManageIncidents() {
+            return this.canManageShared || !!this.permissions.canManageIncidents;
+        },
+        canManageMaintenance() {
+            return this.canManageShared || !!this.permissions.canManageMaintenance;
+        },
         isAdmin() {
             return this.permissions.role === "admin";
         },

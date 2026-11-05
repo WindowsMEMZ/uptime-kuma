@@ -5,7 +5,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            {{ $t("Setup 2FA") }}
+                            {{ $t("TOTP Settings") }}
                             <span v-if="twoFAStatus == true" class="badge bg-primary">{{ $t("Active") }}</span>
                             <span v-if="twoFAStatus == false" class="badge bg-primary">{{ $t("Inactive") }}</span>
                         </h5>
@@ -39,11 +39,11 @@
                             <p v-if="showURI && twoFAStatus == false" class="text-break mt-2">{{ uri }}</p>
 
                             <div v-if="!(uri && twoFAStatus == false)" class="mb-3">
-                                <label for="current-password" class="form-label">
+                                <label for="totp-current-password" class="form-label">
                                     {{ $t("Current Password") }}
                                 </label>
                                 <input
-                                    id="current-password"
+                                    id="totp-current-password"
                                     v-model="currentPassword"
                                     type="password"
                                     class="form-control"
@@ -58,7 +58,7 @@
                                 type="button"
                                 @click="prepare2FA()"
                             >
-                                {{ $t("Enable 2FA") }}
+                                {{ $t("Enable TOTP") }}
                             </button>
 
                             <button
@@ -68,7 +68,7 @@
                                 :disabled="processing"
                                 @click="confirmDisableTwoFA()"
                             >
-                                {{ $t("Disable 2FA") }}
+                                {{ $t("Disable TOTP") }}
                             </button>
 
                             <div v-if="uri && twoFAStatus == false" class="mt-3">
@@ -86,12 +86,7 @@
                     </div>
 
                     <div v-if="uri && twoFAStatus == false" class="modal-footer">
-                        <button
-                            type="submit"
-                            class="btn btn-primary"
-                            :disabled="processing"
-                            @click="confirmEnableTwoFA()"
-                        >
+                        <button type="submit" class="btn btn-primary" :disabled="processing">
                             <div v-if="processing" class="spinner-border spinner-border-sm me-1"></div>
                             {{ $t("Save") }}
                         </button>
@@ -121,6 +116,7 @@ import { Modal } from "bootstrap";
 import Confirm from "./Confirm.vue";
 import VueQrcode from "vue-qrcode";
 import { authClient } from "../auth-client";
+import { reconnectSocket } from "../mixins/socket";
 
 export default {
     components: {
@@ -143,6 +139,19 @@ export default {
         this.getStatus();
     },
     methods: {
+        /**
+         * Submit the active authenticator configuration step.
+         * @returns {void}
+         */
+        submit() {
+            if (this.twoFAStatus) {
+                this.confirmDisableTwoFA();
+            } else if (this.uri) {
+                this.confirmEnableTwoFA();
+            } else {
+                this.prepare2FA();
+            }
+        },
         /**
          * Show the dialog
          * @returns {void}
@@ -210,6 +219,8 @@ export default {
 
             this.$root.toastSuccess(this.$t("2faEnabled"));
             this.twoFAStatus = true;
+            reconnectSocket();
+            this.$root.emitter.emit("accountSecurityChanged");
             this.uri = null;
             this.token = null;
             this.modal.hide();
@@ -235,6 +246,8 @@ export default {
 
             this.$root.toastSuccess(this.$t("2faDisabled"));
             this.twoFAStatus = false;
+            reconnectSocket();
+            this.$root.emitter.emit("accountSecurityChanged");
             this.currentPassword = "";
             this.modal.hide();
         },

@@ -37,7 +37,10 @@ export async function login(username: string, password: string, remember: boolea
     }
 
     if ("twoFactorRedirect" in data) {
-        return "twoFactorRequired";
+        return {
+            twoFactorRequired: true,
+            methods: (data as { twoFactorMethods?: string[] }).twoFactorMethods || ["totp"],
+        };
     }
 
     reconnectSocket();

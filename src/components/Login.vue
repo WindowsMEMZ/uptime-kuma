@@ -29,7 +29,23 @@
                 </div>
 
                 <div v-if="tokenRequired">
-                    <div class="form-floating mt-3">
+                    <div v-if="twoFactorMethods.length > 1" class="d-flex gap-2 mt-3">
+                        <button
+                            v-for="method in twoFactorMethods"
+                            :key="method"
+                            type="button"
+                            class="btn flex-fill"
+                            :class="twoFactorMethod === method ? 'btn-primary' : 'btn-outline-primary'"
+                            :disabled="processing"
+                            @click="
+                                twoFactorMethod = method;
+                                res = null;
+                            "
+                        >
+                            {{ $t(method === "passkey" ? "Passkey" : "Authenticator App") }}
+                        </button>
+                    </div>
+                    <div v-if="twoFactorMethod === 'totp'" class="form-floating mt-3">
                         <input
                             id="otp"
                             ref="otpInput"
@@ -45,7 +61,7 @@
                     </div>
                 </div>
 
-                <div class="form-check mb-3 mt-3 d-flex justify-content-center pe-4">
+                <div v-if="!tokenRequired" class="form-check mb-3 mt-3 d-flex justify-content-center pe-4">
                     <div class="form-check">
                         <input
                             id="remember"
@@ -60,8 +76,18 @@
                         </label>
                     </div>
                 </div>
-                <button class="w-100 btn btn-primary" type="submit" :disabled="processing">
-                    {{ $t("Login") }}
+                <button class="w-100 btn btn-primary mt-3" type="submit" :disabled="processing">
+                    {{ $t(tokenRequired && twoFactorMethod === "passkey" ? "Verify with Passkey" : "Login") }}
+                </button>
+
+                <button
+                    v-if="tokenRequired"
+                    class="btn btn-link mt-2"
+                    type="button"
+                    :disabled="processing"
+                    @click="resetLogin"
+                >
+                    {{ $t("Back to Sign In") }}
                 </button>
 
                 <div v-if="res && !res.ok" class="alert alert-danger mt-3" role="alert">
@@ -74,6 +100,8 @@
 
 <script>
 import { login, verifyTotp } from "../auth-client";
+import { verifyPasskey } from "../passkey-client";
+import { reconnectSocket } from "../mixins/socket";
 
 export default {
     data() {
@@ -84,6 +112,8 @@ export default {
             token: "",
             res: null,
             tokenRequired: false,
+            twoFactorMethods: ["totp"],
+            twoFactorMethod: "totp",
         };
     },
 
@@ -107,6 +137,16 @@ export default {
 
     methods: {
         /**
+         * Return to password entry after a cancelled or expired challenge.
+         * @returns {void}
+         */
+        resetLogin() {
+            this.tokenRequired = false;
+            this.password = "";
+            this.token = "";
+            this.res = null;
+        },
+        /**
          * Submit the user details and attempt to log in
          * @returns {void}
          */
@@ -115,16 +155,27 @@ export default {
 
             try {
                 if (this.tokenRequired) {
-                    await verifyTotp(this.token);
+                    if (this.twoFactorMethod === "passkey") {
+                        await verifyPasskey();
+                        reconnectSocket();
+                    } else {
+                        await verifyTotp(this.token);
+                    }
                     return;
                 }
 
                 const result = await login(this.username, this.password, this.$root.remember);
-                if (result === "twoFactorRequired") {
+                if (result?.twoFactorRequired) {
+                    this.twoFactorMethods = result.methods;
+                    this.twoFactorMethod = result.methods.includes("passkey") ? "passkey" : "totp";
+                    this.password = "";
                     this.tokenRequired = true;
                 }
             } catch (e) {
-                this.res = { ok: false, msg: e.message };
+                this.res = {
+                    ok: false,
+                    msg: e.name === "NotAllowedError" || e.name === "AbortError" ? "passkeyCancelled" : e.message,
+                };
             } finally {
                 this.processing = false;
             }

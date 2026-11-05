@@ -8,6 +8,7 @@ const knex = require("knex");
 const migration = require("../../db/knex_migrations/2026-11-06-0000-account-permissions");
 const { getPermissions, authorize } = require("../../server/permissions");
 const accounts = require("../../server/account-service");
+const featureMigration = require("../../db/knex_migrations/2026-11-06-0001-incident-permissions-passkeys");
 
 before(async () => {
     R.setup(knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true }));
@@ -40,6 +41,7 @@ before(async () => {
     await migration.down(R.knex);
     assert.equal(await R.knex.schema.hasTable("user_monitor_permission"), false);
     await migration.up(R.knex);
+    await featureMigration.up(R.knex);
 });
 
 beforeEach(async () => {
@@ -160,6 +162,63 @@ test("permission replacement is atomic and revocation takes effect on the next o
     await assert.rejects(authorize(await getPermissions("member"), "pauseMonitor", [2]), /Permission denied/);
 });
 
+test("Member incident and maintenance management are independently granted and revoked", async () => {
+    const input = { monitorIDs: [], statusPageIDs: [], canManageIncidents: true, canManageMaintenance: false };
+    await accounts.savePermissions("owner", "member", input);
+    let member = await getPermissions("member");
+    const incidentEvents = [
+        "saveManagedIncident",
+        "saveIncidentUpdate",
+        "managedIncidentAction",
+        "postIncident",
+        "unpinIncident",
+        "editIncident",
+        "deleteIncident",
+        "resolveIncident",
+    ];
+    const maintenanceEvents = [
+        "addMaintenance",
+        "editMaintenance",
+        "addMonitorMaintenance",
+        "addMaintenanceStatusPage",
+        "deleteMaintenance",
+        "pauseMaintenance",
+        "resumeMaintenance",
+    ];
+    for (const event of incidentEvents) {
+        await authorize(member, event, []);
+    }
+    for (const event of maintenanceEvents) {
+        await assert.rejects(authorize(member, event, []), /Permission denied/);
+    }
+    await assert.rejects(authorize(member, "add", []), /Permission denied/);
+    await assert.rejects(authorize(member, "setSettings", []), /Permission denied/);
+    await accounts.savePermissions("admin", "member", {
+        ...input,
+        canManageIncidents: false,
+        canManageMaintenance: true,
+    });
+    member = await getPermissions("member");
+    for (const event of maintenanceEvents) {
+        await authorize(member, event, []);
+    }
+    for (const event of incidentEvents) {
+        await assert.rejects(authorize(member, event, []), /Permission denied/);
+    }
+    await assert.rejects(
+        accounts.savePermissions("owner", "member", { ...input, canManageIncidents: "true" }),
+        /Invalid resource permissions/
+    );
+    await accounts.savePermissions("owner", "member", { ...input, canManageIncidents: false });
+    await assert.rejects(authorize(await getPermissions("member"), "addMaintenance", []), /Permission denied/);
+    await accounts.savePermissions("owner", "member", { ...input, canManageMaintenance: true });
+    await accounts.setRole("admin", "member", "owner");
+    await accounts.setRole("admin", "member", "member");
+    member = await getPermissions("member");
+    assert.equal(member.canManageIncidents, false);
+    assert.equal(member.canManageMaintenance, false);
+});
+
 test("Admins can promote and demote other accounts while their own account remains protected", async () => {
     await assert.rejects(accounts.setRole("admin", "admin", "member"), /Invalid account role change/);
     await assert.rejects(accounts.remove("admin", "admin"), /own account/);
@@ -184,6 +243,8 @@ test("Admins can promote and demote other accounts while their own account remai
 test("account lists contain role and 2FA state; deletion revokes credentials without deleting shared monitors", async () => {
     const users = await accounts.list("owner");
     assert.deepEqual(Object.keys(users[0]).sort(), [
+        "canManageIncidents",
+        "canManageMaintenance",
         "id",
         "monitorIDs",
         "role",
@@ -197,7 +258,21 @@ test("account lists contain role and 2FA state; deletion revokes credentials wit
     for (const table of ["better_auth_session", "better_auth_account", "better_auth_twoFactor"]) {
         await R.knex(table).insert({ id: table, userId: "member" });
     }
+    await R.knex("user_passkey").insert({
+        id: "test-key",
+        user_id: "member",
+        credential_hash: "a".repeat(64),
+        credential_id: "credential",
+        public_key: "public-key",
+        counter: 0,
+        rp_id: "localhost",
+        name: "Key",
+        transports: "[]",
+        created_date: new Date(),
+    });
+    assert.equal((await accounts.list("owner")).find((user) => user.id === "member").twoFactorEnabled, true);
     await accounts.remove("admin", "member");
+    assert.equal((await R.knex("user_passkey")).length, 0);
     await assert.rejects(getPermissions("member"), /not logged in/);
     assert.equal((await R.knex("monitor").where("id", 1).first()).user_id, null);
     assert.equal((await R.knex("user_monitor_permission")).length, 0);

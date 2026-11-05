@@ -25,7 +25,7 @@
                 </div>
             </div>
         </form>
-        <div v-if="created" class="alert alert-success" data-testid="initial-password">
+        <div v-if="created" class="alert alert-success initial-password-panel" data-testid="initial-password">
             <p>{{ $t("accountCreatedPassword", { username: created.username }) }}</p>
             <label for="account-initial-password" class="form-label">{{ $t("Initial Password") }}</label>
             <input
@@ -97,6 +97,29 @@
             <h6>{{ $t("accountPermissionsFor", { username: selected.username }) }}</h6>
             <p class="form-text">{{ $t("accountMemberPermissionsHint") }}</p>
             <fieldset class="mb-3">
+                <legend class="fs-6">{{ $t("Management Permissions") }}</legend>
+                <div class="form-check form-switch mb-2">
+                    <input
+                        id="permission-incidents"
+                        v-model="selected.canManageIncidents"
+                        type="checkbox"
+                        class="form-check-input"
+                    />
+                    <label for="permission-incidents" class="form-check-label">{{ $t("Manage Incidents") }}</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input
+                        id="permission-maintenance"
+                        v-model="selected.canManageMaintenance"
+                        type="checkbox"
+                        class="form-check-input"
+                    />
+                    <label for="permission-maintenance" class="form-check-label">
+                        {{ $t("Manage Scheduled Maintenance") }}
+                    </label>
+                </div>
+            </fieldset>
+            <fieldset class="mb-3">
                 <legend class="fs-6">{{ $t("Monitors") }}</legend>
                 <div v-for="monitor in $root.monitorList" :key="monitor.id" class="form-check">
                     <input
@@ -153,9 +176,11 @@ export default {
     mounted() {
         this.loadAccounts();
         this.$root.getSocket().on("accountsChanged", this.loadAccounts);
+        this.$root.emitter.on("accountSecurityChanged", this.loadAccounts);
     },
     beforeUnmount() {
         this.$root.getSocket().off("accountsChanged", this.loadAccounts);
+        this.$root.emitter.off("accountSecurityChanged", this.loadAccounts);
         this.created = null;
     },
     methods: {
@@ -246,6 +271,8 @@ export default {
             const res = await this.request("saveAccountPermissions", this.selected.id, {
                 monitorIDs: this.selected.monitorIDs,
                 statusPageIDs: this.selected.statusPageIDs,
+                canManageIncidents: !!this.selected.canManageIncidents,
+                canManageMaintenance: !!this.selected.canManageMaintenance,
             });
             if (res.ok) {
                 this.selected = null;
@@ -274,6 +301,10 @@ export default {
 </script>
 
 <style scoped>
+.initial-password-panel {
+    border-radius: 12px;
+}
+
 .account-actions {
     white-space: nowrap;
 }

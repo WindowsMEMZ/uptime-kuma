@@ -1,7 +1,7 @@
 <template>
     <div>
         <h1 class="mb-3">{{ $t("Incidents") }}</h1>
-        <router-link v-if="$root.canManageShared" to="/incidents/new" class="btn btn-primary mb-3">
+        <router-link v-if="$root.canManageIncidents" to="/incidents/new" class="btn btn-primary mb-3">
             <font-awesome-icon icon="plus" />
             {{ $t("Create Incident") }}
         </router-link>
@@ -16,7 +16,9 @@
                         {{ $root.datetime(incident.lastUpdatedDate || incident.createdDate) }}
                     </div>
                 </div>
-                <router-link v-if="$root.canManageShared" :to="`/incidents/${incident.id}`" class="btn btn-normal">{{ $t("Edit") }}</router-link>
+                <router-link v-if="$root.canManageIncidents" :to="`/incidents/${incident.id}`" class="btn btn-normal">
+                    {{ $t("Edit") }}
+                </router-link>
             </div>
         </div>
     </div>

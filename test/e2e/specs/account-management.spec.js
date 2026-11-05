@@ -148,7 +148,9 @@ test("manages accounts, scoped Member access, passwords, 2FA, role changes, and 
         await member.getByTestId("friendly-name-input").fill("Member edit");
         await expect(member.getByRole("button", { name: "Setup Notification", exact: true })).toHaveCount(0);
         await member.getByTestId("save-button").click();
-        await expect.poll(async () => (await request(member, "getMonitor", assignedID)).monitor.name).toBe("Member edit");
+        await expect
+            .poll(async () => (await request(member, "getMonitor", assignedID)).monitor.name)
+            .toBe("Member edit");
         const config = (await request(member, "getStatusPage", "assigned-page")).config;
         expect(
             (
@@ -198,7 +200,11 @@ test("manages accounts, scoped Member access, passwords, 2FA, role changes, and 
         await expect(member.getByTestId("edit-sidebar")).toHaveCount(0);
         await member.goto("/dashboard");
         await expect
-            .poll(() => member.evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role))
+            .poll(() =>
+                member
+                    .evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role)
+                    .catch(() => null)
+            )
             .toBe("member");
         expect(
             (await request(owner, "saveAccountPermissions", memberID, { monitorIDs: [], statusPageIDs: [] })).ok
@@ -241,12 +247,20 @@ test("manages accounts, scoped Member access, passwords, 2FA, role changes, and 
         const roleSelect = page.locator('[data-account-username="test_member"] select');
         await roleSelect.selectOption("admin");
         await expect
-            .poll(() => member.evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role))
+            .poll(() =>
+                member
+                    .evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role)
+                    .catch(() => null)
+            )
             .toBe("admin");
         expect((await request(member, "getAccounts")).ok).toBe(true);
         await roleSelect.selectOption("member");
         await expect
-            .poll(() => member.evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role))
+            .poll(() =>
+                member
+                    .evaluate(() => document.querySelector("#app")._vnode.component.proxy.permissions.role)
+                    .catch(() => null)
+            )
             .toBe("member");
         expect((await request(member, "createAccount", { username: "after_demotion", role: "admin" })).ok).toBe(false);
 
