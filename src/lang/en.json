@@ -1676,5 +1676,7 @@
     "incidentLabel-investigating": "Investigating",
     "incidentLabel-identified": "Identified",
     "incidentLabel-monitoring": "Monitoring",
-    "incidentLabel-resolved": "Resolved"
+    "incidentLabel-resolved": "Resolved",
+    "Show all progress": "Show all progress ({count})",
+    "Collapse progress": "Collapse progress"
 }

@@ -38,7 +38,7 @@
                             </button>
                         </div>
                     </div>
-                    <IncidentTimeline class="incident-content mt-1" :incident="incident" />
+                    <IncidentTimeline class="incident-content mt-1" :incident="incident" collapsible />
                     <div class="incident-meta text-muted small mt-2">
                         <div>{{ $t("createdAt", { date: datetime(incident.createdDate) }) }}</div>
                         <div v-if="incident.lastUpdatedDate">

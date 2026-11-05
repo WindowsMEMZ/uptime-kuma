@@ -1806,5 +1806,7 @@
     "incidentLabel-investigating": "调查中",
     "incidentLabel-identified": "已定位",
     "incidentLabel-monitoring": "监控中",
-    "incidentLabel-resolved": "已解决"
+    "incidentLabel-resolved": "已解决",
+    "Show all progress": "展开全部进度（{count}）",
+    "Collapse progress": "收起进度"
 }

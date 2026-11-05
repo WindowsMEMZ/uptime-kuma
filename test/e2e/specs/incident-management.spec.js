@@ -122,7 +122,18 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
         await page.getByRole("button", { name: "Add Progress", exact: true }).click();
         await expect(page.getByTestId("incident-progress-entry")).toHaveCount(2);
         await expect(page.locator("#incident-progress-label")).toHaveValue("updated");
-        await expect(publicPage.getByTestId("incident").locator(".incident-label-investigating")).toBeVisible();
+        const publicIncident = publicPage.getByTestId("incident");
+        await expect(publicIncident.locator(".incident-label-identified")).toBeVisible({ timeout: 15000 });
+        await expect(publicIncident.locator(".incident-progress")).toHaveCount(1);
+        await expect(publicIncident.locator(".incident-label-investigating")).toHaveCount(0);
+        const toggle = publicIncident.getByRole("button", { name: "Show all progress (2)", exact: true });
+        await expect(toggle).toHaveAttribute("aria-expanded", "false");
+        await toggle.click();
+        await expect(publicIncident.locator(".incident-progress")).toHaveCount(2);
+        await expect(publicIncident.getByRole("button", { name: "Collapse progress", exact: true })).toHaveAttribute(
+            "aria-expanded",
+            "true"
+        );
         const oldest = page.getByTestId("incident-progress-entry").last();
         await oldest.getByRole("button", { name: "Edit", exact: true }).click();
         await oldest.locator("textarea").fill("Investigation started; corrected description");
@@ -135,6 +146,10 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
             timeout: 15000,
         });
         await expect(publicPage.getByTestId("incident")).toContainText("corrected description");
+        await publicIncident.getByRole("button", { name: "Collapse progress", exact: true }).click();
+        await expect(publicIncident.locator(".incident-progress")).toHaveCount(1);
+        await expect(publicIncident).not.toContainText("corrected description");
+        await publicIncident.getByRole("button", { name: "Show all progress (2)", exact: true }).click();
         for (const slug of ["incident-one", "incident-two"]) {
             const data = await (await publicPage.request.get(`/api/status-page/${slug}/incident-history`)).json();
             expect(data.incidents[0].updates).toHaveLength(2);
@@ -236,6 +251,13 @@ test("manages shared incident timelines and immediate per-monitor overrides", as
             "Cross-incident edit"
         );
         expect(invalidUpdate.ok).toBe(false);
+        expect((await request(page, "unpinIncident", "incident-one")).ok).toBe(true);
+        const pastIncident = publicPage.locator(".past-incidents-section .incident-item");
+        await expect(pastIncident.locator(".incident-progress")).toHaveCount(1, { timeout: 15000 });
+        await pastIncident.getByRole("button", { name: "Show all progress (4)", exact: true }).click();
+        await expect(pastIncident.locator(".incident-progress")).toHaveCount(4);
+        await pastIncident.getByRole("button", { name: "Collapse progress", exact: true }).click();
+        await expect(pastIncident.locator(".incident-progress")).toHaveCount(1);
         expect((await request(page, "managedIncidentAction", incidentID, "delete")).ok).toBe(true);
         expect(
             db.prepare("SELECT count(*) AS count FROM incident_update WHERE incident_id=?").get(incidentID).count

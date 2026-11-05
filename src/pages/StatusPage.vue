@@ -329,7 +329,7 @@
                     data-testid="incident"
                 >
                     <h4 class="alert-heading" data-testid="incident-title">{{ activeIncident.title }}</h4>
-                    <IncidentTimeline :incident="activeIncident" data-testid="incident-content" />
+                    <IncidentTimeline :incident="activeIncident" collapsible data-testid="incident-content" />
 
                     <!-- Incident Date -->
                     <div class="date mt-3">
