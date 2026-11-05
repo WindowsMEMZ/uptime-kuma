@@ -92,7 +92,7 @@ function createAuthInstance() {
         // Should be handled in Express.js, check better-auth-router.ts
         trustedOrigins: ["*"],
 
-        // Since multiple users are not supported yet, disable these paths to prevent accidental usage
+        // Account management uses the permission-checked dashboard handlers.
         disabledPaths: [
             "/admin/create-user",
             "/admin/get-user",
@@ -289,7 +289,7 @@ export function createHeaders(cookie: string) {
 export async function getDisableAuthSession(): ReturnType<typeof getSession> {
     log.info("auth", "Logged in with Disable Auth");
 
-    const obj = await R.getRow("SELECT * FROM better_auth_user LIMIT 1");
+    const obj = await R.getRow("SELECT * FROM better_auth_user WHERE role = 'admin' LIMIT 1");
 
     if (!obj) {
         throw new Error("Unexpected Error: No user found in the database.");

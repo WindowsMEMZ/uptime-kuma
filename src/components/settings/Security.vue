@@ -81,7 +81,9 @@
                 </div>
             </div>
 
-            <div class="my-4">
+            <Accounts v-if="$root.canManageShared" />
+
+            <div v-if="$root.isAdmin" class="my-4">
                 <!-- Advanced -->
                 <h5 class="my-4 settings-subheading">{{ $t("Advanced") }}</h5>
 
@@ -144,12 +146,14 @@
 </template>
 
 <script>
+import Accounts from "./Accounts.vue";
 import Confirm from "../../components/Confirm.vue";
 import TwoFADialog from "../../components/TwoFADialog.vue";
 import { authClient } from "../../auth-client";
 
 export default {
     components: {
+        Accounts,
         Confirm,
         TwoFADialog,
     },

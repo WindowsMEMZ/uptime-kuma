@@ -433,6 +433,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             }
 
             apicache.clear();
+            await StatusPage.sendStatusPageList(server.io, socket);
 
             callback({
                 ok: true,
@@ -478,6 +479,7 @@ module.exports.statusPageSocketHandler = (socket) => {
             statusPage.icon = "";
             statusPage.autoRefreshInterval = 300;
             await R.store(statusPage);
+            await StatusPage.sendStatusPageList(UptimeKumaServer.getInstance().io, socket);
 
             callback({
                 ok: true,
@@ -525,6 +527,7 @@ module.exports.statusPageSocketHandler = (socket) => {
                 await R.exec("DELETE FROM status_page WHERE id = ? ", [statusPageID]);
 
                 apicache.clear();
+                await StatusPage.sendStatusPageList(server.io, socket);
             } else {
                 throw new Error("Status Page is not found");
             }

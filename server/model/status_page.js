@@ -369,7 +369,7 @@ class StatusPage extends BeanModel {
             result[item.id] = await item.toJSON();
         }
 
-        io.to(socket.userID).emit("statusPageList", result);
+        io.to(require("../heartbeat-emit").socketRoom).emit("statusPageList", result);
         return list;
     }
 

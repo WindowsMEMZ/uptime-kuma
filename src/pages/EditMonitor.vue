@@ -2,7 +2,10 @@
     <transition name="slide-fade" appear>
         <div>
             <h1 class="mb-3">{{ pageName }}</h1>
-            <form @submit.prevent="submit">
+            <form
+                v-if="$root.canManageShared || (isEdit && $root.canEditMonitor($route.params.id))"
+                @submit.prevent="submit"
+            >
                 <div class="shadow-box shadow-box-with-fixed-bottom-bar">
                     <div class="row">
                         <div class="col-md-6">
@@ -328,6 +331,7 @@
                                     <label for="remote-browser" class="form-label">{{ $t("Remote Browser") }}</label>
                                     <ActionSelect
                                         v-model="monitor.remote_browser"
+                                        :show-action="$root.canManageShared"
                                         :options="remoteBrowsersOptions"
                                         icon="plus"
                                         :action="() => $refs.remoteBrowserDialog.show()"
@@ -1104,6 +1108,7 @@
                                     <ActionSelect
                                         id="docker-host"
                                         v-model="monitor.docker_host"
+                                        :show-action="$root.canManageShared"
                                         :action-aria-label="$t('openModalTo', $t('Setup Docker Host'))"
                                         :options="dockerHostOptionsList"
                                         :disabled="$root.dockerHostList == null || $root.dockerHostList.length === 0"
@@ -2242,6 +2247,7 @@
                                 <ActionSelect
                                     id="monitorGroupSelector"
                                     v-model="monitor.parent"
+                                    :show-action="$root.canManageShared"
                                     :action-aria-label="$t('openModalTo', 'setup a new monitor group')"
                                     :options="parentMonitorOptionsList"
                                     :disabled="sortedGroupMonitorList.length === 0 && draftGroupName == null"
@@ -2290,7 +2296,11 @@
 
                                 <label class="form-check-label" :for="'notification' + notification.id">
                                     {{ notification.name }}
-                                    <a href="#" @click="$refs.notificationDialog.show(notification.id)">
+                                    <a
+                                        v-if="$root.canManageShared"
+                                        href="#"
+                                        @click="$refs.notificationDialog.show(notification.id)"
+                                    >
                                         {{ $t("Edit") }}
                                     </a>
                                 </label>
@@ -2300,7 +2310,12 @@
                                 </span>
                             </div>
 
-                            <button class="btn btn-primary me-2" type="button" @click="$refs.notificationDialog.show()">
+                            <button
+                                v-if="$root.canManageShared"
+                                class="btn btn-primary me-2"
+                                type="button"
+                                @click="$refs.notificationDialog.show()"
+                            >
                                 {{ $t("Setup Notification") }}
                             </button>
 
@@ -2526,7 +2541,13 @@
 
                                     <label class="form-check-label" :for="`proxy-${proxy.id}`">
                                         {{ proxy.host }}:{{ proxy.port }} ({{ proxy.protocol }})
-                                        <a href="#" @click="$refs.proxyDialog.show(proxy.id)">{{ $t("Edit") }}</a>
+                                        <a
+                                            v-if="$root.canManageShared"
+                                            href="#"
+                                            @click="$refs.proxyDialog.show(proxy.id)"
+                                        >
+                                            {{ $t("Edit") }}
+                                        </a>
                                     </label>
 
                                     <span v-if="proxy.default === true" class="badge bg-primary ms-2">
@@ -2534,7 +2555,12 @@
                                     </span>
                                 </div>
 
-                                <button class="btn btn-primary me-2" type="button" @click="$refs.proxyDialog.show()">
+                                <button
+                                    v-if="$root.canManageShared"
+                                    class="btn btn-primary me-2"
+                                    type="button"
+                                    @click="$refs.proxyDialog.show()"
+                                >
                                     {{ $t("Setup Proxy") }}
                                 </button>
                             </div>

@@ -1808,5 +1808,19 @@
     "incidentLabel-monitoring": "监控中",
     "incidentLabel-resolved": "已解决",
     "Show all progress": "展开全部进度（{count}）",
-    "Collapse progress": "收起进度"
+    "Collapse progress": "收起进度",
+    "Accounts": "账户",
+    "Account Role": "账户类型",
+    "Create Account": "创建账户",
+    "Initial Password": "初始密码",
+    "Edit Permissions": "修改权限",
+    "accountCreatedPassword": "已创建账户 {username}。请保存此初始密码，登录后可修改密码。",
+    "accountUsernameInvalid": "用户名须为 3–30 位字母、数字、下划线或点。",
+    "accountUsernameExists": "此用户名已存在。",
+    "accountRoleFor": "{username} 的账户类型",
+    "accountPermissionsFor": "{username} 的权限",
+    "accountMemberPermissionsHint": "选择此 Member 可修改的监控项和状态页。",
+    "accountDeleteConfirm": "删除账户 {username}？",
+    "account2FAEnabled": "已启用",
+    "account2FADisabled": "未启用"
 }

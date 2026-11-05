@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-if="$root.canManageShared">
         <router-link to="/incidents">{{ $t("Incidents") }}</router-link>
         <h1 class="my-3">{{ isNew ? $t("Create Incident") : $t("Edit Incident") }}</h1>
         <div v-if="loading" class="shadow-box">{{ $t("Loading...") }}</div>

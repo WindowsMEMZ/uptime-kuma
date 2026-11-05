@@ -22,7 +22,7 @@
         <div class="shadow-box shadow-box-settings">
             <div class="row">
                 <div v-if="showSubMenu" class="settings-menu col-lg-3 col-md-5">
-                    <router-link v-for="(item, key) in subMenus" :key="key" :to="`/settings/${key}`">
+                    <router-link v-for="(item, key) in availableSubMenus" :key="key" :to="`/settings/${key}`">
                         <div class="menu-item">
                             {{ item.title }}
                         </div>
@@ -38,12 +38,12 @@
                 </div>
                 <div class="settings-content col-lg-9 col-md-7">
                     <div v-if="currentPage" class="settings-content-header">
-                        {{ subMenus[currentPage].title }}
+                        {{ subMenus[currentPage]?.title }}
                     </div>
                     <div class="mx-3">
                         <router-view v-slot="{ Component }">
                             <transition name="slide-fade" appear>
-                                <component :is="Component" />
+                                <component :is="Component" v-if="availableSubMenus[currentPage]" />
                             </transition>
                         </router-view>
                     </div>
@@ -81,6 +81,12 @@ export default {
             } else {
                 return true;
             }
+        },
+
+        availableSubMenus() {
+            return this.$root.canManageShared
+                ? this.subMenus
+                : { security: this.subMenus.security, about: this.subMenus.about };
         },
 
         subMenus() {
@@ -126,6 +132,12 @@ export default {
     },
 
     watch: {
+        "$root.canManageShared"() {
+            this.loadSettings();
+            if (this.currentPage && !this.availableSubMenus[this.currentPage]) {
+                this.$router.replace("/settings/security");
+            }
+        },
         "$root.isMobile"() {
             this.loadGeneralPage();
         },
@@ -144,7 +156,7 @@ export default {
          */
         loadGeneralPage() {
             if (!this.currentPage && !this.$root.isMobile) {
-                this.$router.push("/settings/general");
+                this.$router.push(this.$root.canManageShared ? "/settings/general" : "/settings/security");
             }
         },
 
@@ -154,6 +166,10 @@ export default {
          */
         loadSettings() {
             this.$root.getSocket().emit("getSettings", (res) => {
+                if (!res.ok) {
+                    this.$root.toastRes(res);
+                    return;
+                }
                 this.settings = res.data;
 
                 if (this.settings.checkUpdate === undefined) {

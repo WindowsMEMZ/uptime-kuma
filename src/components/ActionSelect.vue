@@ -6,6 +6,7 @@
             </option>
         </select>
         <button
+            v-if="showAction"
             type="button"
             class="btn btn-outline-primary"
             :class="{ disabled: actionDisabled }"
@@ -24,6 +25,10 @@
  */
 export default {
     props: {
+        showAction: {
+            type: Boolean,
+            default: true,
+        },
         options: {
             type: Array,
             default: () => [],

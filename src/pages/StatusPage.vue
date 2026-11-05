@@ -275,7 +275,12 @@
             <!-- Admin functions -->
             <div v-if="authenticated" class="mb-2">
                 <div v-if="!enableEditMode">
-                    <button class="btn btn-primary mb-2 me-2" data-testid="edit-button" @click="edit">
+                    <button
+                        v-if="canEditPage"
+                        class="btn btn-primary mb-2 me-2"
+                        data-testid="edit-button"
+                        @click="edit"
+                    >
                         <font-awesome-icon icon="edit" />
                         {{ $t("Edit Status Page") }}
                     </button>
@@ -288,6 +293,7 @@
 
                 <div v-else>
                     <button
+                        v-if="$root.canManageShared"
                         class="btn btn-primary btn-add-group me-2"
                         data-testid="create-incident-button"
                         @click="createIncident"
@@ -350,7 +356,7 @@
                         </span>
                     </div>
 
-                    <div v-if="editMode" class="mt-3">
+                    <div v-if="editMode && $root.canManageShared" class="mt-3">
                         <router-link :to="`/incidents/${activeIncident.id}`" class="btn btn-light me-2">
                             {{ $t("Add Progress") }}
                         </router-link>
@@ -507,7 +513,7 @@
                         <div class="shadow-box incident-list-box">
                             <IncidentHistory
                                 :incidents="dateGroup"
-                                :edit-mode="enableEditMode"
+                                :edit-mode="enableEditMode && $root.canManageShared"
                                 :loading="incidentHistoryLoading"
                                 @edit-incident="$refs.incidentManageModal.showEdit($event)"
                                 @delete-incident="$refs.incidentManageModal.showDelete($event)"
@@ -618,7 +624,7 @@ import IncidentHistory from "../components/IncidentHistory.vue";
 import IncidentManageModal from "../components/IncidentManageModal.vue";
 import IncidentEditForm from "../components/IncidentEditForm.vue";
 import { getResBaseURL } from "../util-frontend";
-import { authClient } from "../auth-client";
+import { authClient, baseURL } from "../auth-client";
 import {
     STATUS_PAGE_ALL_DOWN,
     STATUS_PAGE_ALL_UP,
@@ -715,6 +721,9 @@ export default {
         };
     },
     computed: {
+        canEditPage() {
+            return this.$root.canManageShared || this.$root.permissions.statusPageSlugs.includes(this.slug);
+        },
         logoURL() {
             if (this.imgDataUrl.startsWith("data:")) {
                 return this.imgDataUrl;
@@ -899,6 +908,11 @@ export default {
         },
     },
     watch: {
+        canEditPage(allowed) {
+            if (!allowed) {
+                this.enableEditMode = false;
+            }
+        },
         /**
          * If connected to the socket and logged in, request private data of this statusPage
          * @param {boolean} loggedIn Is the client logged in?
@@ -967,8 +981,12 @@ export default {
     created() {
         this._authPromise = authClient
             .getSession()
-            .then((session) => {
+            .then(async (session) => {
                 this.authenticated = session.data !== null;
+                if (this.authenticated) {
+                    const res = await axios.get(`${baseURL}/api/account-permissions`, { withCredentials: true });
+                    this.$root.permissions = res.data.permissions;
+                }
             })
             .catch(() => {
                 this.authenticated = false;
@@ -1164,7 +1182,7 @@ export default {
          * @returns {void}
          */
         edit() {
-            if (this.authenticated) {
+            if (this.authenticated && this.canEditPage) {
                 this.$root.initSocketIO(true);
                 this.enableEditMode = true;
                 this.clickedEditButton = true;

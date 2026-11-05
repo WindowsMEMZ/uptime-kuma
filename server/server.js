@@ -409,6 +409,9 @@ app.use(function (req, res, next) {
 
     log.debug("server", "Adding socket handler");
     io.on("connection", async (socket) => {
+        const { getPermissions, installPermissionMiddleware } = require("./permissions");
+        installPermissionMiddleware(socket);
+        require("./socket-handlers/account-socket-handler").accountSocketHandler(socket, server);
         await sendInfo(socket, true);
 
         if (await needSetup()) {
@@ -427,6 +430,8 @@ app.use(function (req, res, next) {
             }
 
             session = await getSessionFromHeaders(socket.request.headers.cookie, apiKey);
+            socket.apiKeyLogin = !!apiKey && session?.session.token === apiKey;
+            socket.authAPIKey = apiKey;
         } else {
             session = await getDisableAuthSession();
         }
@@ -435,6 +440,8 @@ app.use(function (req, res, next) {
             socket.userID = session.user.id;
             socket.session = session;
             socket.headers = createHeaders(socket.request.headers.cookie);
+            socket.permissions = await getPermissions(session.user.id);
+            socket.emit("permissions", socket.permissions);
             socket.emit("session", session.user.username);
             log.debug("auth", `Session active:`, session.session.ipAddress, session.user.username);
         }
@@ -741,7 +748,11 @@ app.use(function (req, res, next) {
                 const preloadData = await Monitor.preparePreloadData(monitorData);
                 callback({
                     ok: true,
-                    monitor: monitor.toJSON(preloadData),
+                    monitor: monitor.toJSON(
+                        preloadData,
+                        socket.permissions.role !== "member" ||
+                            socket.permissions.monitorIDs.includes(Number(monitorID))
+                    ),
                 });
             } catch (e) {
                 callback({
@@ -1186,6 +1197,10 @@ app.use(function (req, res, next) {
         socket.on("getSettings", async (callback) => {
             try {
                 checkLogin(socket);
+                if (socket.permissions.role === "member") {
+                    callback({ ok: true, data: { disableAuth: !!(await Settings.get("disableAuth")) } });
+                    return;
+                }
                 const data = await getSettings("general");
 
                 if (!data.serverTimezone) {
@@ -1219,6 +1234,9 @@ app.use(function (req, res, next) {
                 // Enabled Auth + Want to Disable Auth => Check!!
                 // Enabled Auth + Want to Enable Auth => No Check
                 const currentDisabledAuth = await setting("disableAuth");
+                if (!!currentDisabledAuth !== !!data.disableAuth && socket.permissions.role !== "admin") {
+                    throw new Error("Permission denied.");
+                }
                 if (!currentDisabledAuth && data.disableAuth) {
                     await doubleCheckPassword(socket.request.headers.cookie, currentPassword);
                 }
@@ -1553,6 +1571,9 @@ async function afterLogin(socket, user) {
     socket.userID = user.id;
     socket.join(user.id);
     socket.join(socketRoom);
+    if (socket.permissions.role !== "member") {
+        socket.join("account-managers");
+    }
 
     let tPerf = Date.now();
     let monitorList = await server.sendMonitorList(socket);
@@ -1602,7 +1623,7 @@ async function afterLogin(socket, user) {
 
     // Set server timezone from client browser if not set
     // It should be run once only
-    if (!(await Settings.get("initServerTimezone"))) {
+    if (socket.permissions.role !== "member" && !(await Settings.get("initServerTimezone"))) {
         log.debug("server", "emit initServerTimezone");
         socket.emit("initServerTimezone");
     }

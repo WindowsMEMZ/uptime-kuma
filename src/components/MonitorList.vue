@@ -116,7 +116,7 @@
             </div>
             <div v-else-if="Object.keys($root.monitorList).length === 0" class="text-center mt-3">
                 {{ $t("No Monitors, please") }}
-                <router-link to="/add">{{ $t("add one") }}</router-link>
+                <router-link v-if="$root.canManageShared" to="/add">{{ $t("add one") }}</router-link>
             </div>
 
             <div :style="{ height: renderedRows.top + 'px' }"></div>
@@ -347,7 +347,9 @@ export default {
 
                 if (this.selectAll) {
                     this.sortedMonitorList.forEach((item) => {
-                        this.selectedMonitors[item.id] = true;
+                        if (this.$root.canEditMonitor(item.id)) {
+                            this.selectedMonitors[item.id] = true;
+                        }
                     });
                 } else {
                     // Exit select mode when unchecking "select all"
@@ -519,7 +521,9 @@ export default {
          * @returns {void}
          */
         select(id) {
-            this.selectedMonitors[id] = true;
+            if (this.$root.canEditMonitor(id)) {
+                this.selectedMonitors[id] = true;
+            }
         },
         /**
          * Determine if monitor is selected

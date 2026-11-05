@@ -115,7 +115,7 @@
                 </span>
             </p>
 
-            <div class="functions">
+            <div v-if="$root.canEditMonitor(monitor.id)" class="functions">
                 <div class="btn-group" role="group">
                     <button v-if="monitor.active" class="btn btn-normal" @click="pauseDialog">
                         <font-awesome-icon icon="pause" />
@@ -134,7 +134,7 @@
                         <font-awesome-icon icon="edit" />
                         {{ $t("Edit") }}
                     </router-link>
-                    <router-link :to="'/clone/' + monitor.id" class="btn btn-normal">
+                    <router-link v-if="$root.canManageShared" :to="'/clone/' + monitor.id" class="btn btn-normal">
                         <font-awesome-icon icon="clone" />
                         {{ $t("Clone") }}
                     </router-link>
@@ -169,7 +169,7 @@
             </div>
 
             <!-- Push Examples -->
-            <div v-if="monitor.type === 'push'" class="shadow-box big-padding">
+            <div v-if="monitor.type === 'push' && monitor.pushToken" class="shadow-box big-padding">
                 <a href="#" @click="pushMonitor.showPushExamples = !pushMonitor.showPushExamples">
                     {{ $t("pushViewCode") }}
                 </a>
@@ -326,7 +326,7 @@
             </div>
 
             <div class="shadow-box table-shadow-box">
-                <div class="dropdown dropdown-clear-data">
+                <div v-if="$root.canEditMonitor(monitor.id)" class="dropdown dropdown-clear-data">
                     <button
                         class="btn btn-sm btn-outline-danger dropdown-toggle"
                         type="button"
@@ -827,6 +827,9 @@ export default {
          * @returns {string} Censored URL
          */
         filterPassword(urlString) {
+            if (typeof urlString !== "string") {
+                return "";
+            }
             try {
                 let parsedUrl = new URL(urlString);
                 if (parsedUrl.password !== "") {

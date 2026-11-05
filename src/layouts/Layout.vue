@@ -95,7 +95,7 @@
 
                             <li>
                                 <router-link
-                                    to="/settings/general"
+                                    :to="$root.canManageShared ? '/settings/general' : '/settings/security'"
                                     class="dropdown-item"
                                     :class="{ active: $route.path.includes('settings') }"
                                 >
@@ -153,7 +153,7 @@
                 {{ $t("List") }}
             </router-link>
 
-            <router-link to="/add" class="nav-link">
+            <router-link v-if="$root.canManageShared" to="/add" class="nav-link">
                 <div><font-awesome-icon icon="plus" /></div>
                 {{ $t("Add") }}
             </router-link>

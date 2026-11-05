@@ -18,6 +18,7 @@
                     :data-testid="'monitor-select-' + monitor.id"
                     :aria-label="$t('Check/Uncheck')"
                     :checked="isSelected(monitor.id)"
+                    :disabled="!$root.canEditMonitor(monitor.id)"
                     @click.stop="toggleSelection"
                 />
             </div>
@@ -234,6 +235,10 @@ export default {
          * @returns {void} This method does not return anything.
          */
         onDragStart(event) {
+            if (!this.$root.canEditMonitor(this.monitor.id)) {
+                event.preventDefault();
+                return;
+            }
             try {
                 event.dataTransfer.setData("text/monitor-id", String(this.monitor.id));
                 event.dataTransfer.effectAllowed = "move";
@@ -262,7 +267,7 @@ export default {
             this.dragOverCount = 0;
 
             // Only groups accept drops
-            if (this.monitor.type !== "group") {
+            if (this.monitor.type !== "group" || !this.$root.canEditMonitor(this.monitor.id)) {
                 return;
             }
 

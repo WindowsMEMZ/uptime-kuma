@@ -36,6 +36,7 @@ export default {
                 initedSocketIO: false,
             },
             username: null,
+            permissions: { userID: null, role: null, monitorIDs: [], statusPageIDs: [], statusPageSlugs: [] },
             remember: localStorage.remember !== "0",
             allowLoginDialog: false, // Allowed to show login dialog, but "loggedIn" have to be true too. This exists because prevent the login dialog show 0.1s in first before the socket server auth-ed.
             loggedIn: false,
@@ -90,6 +91,22 @@ export default {
     },
 
     methods: {
+        /**
+         * Check whether the current account can modify a monitor.
+         * @param {number|string} id Monitor ID
+         * @returns {boolean} Write permission
+         */
+        canEditMonitor(id) {
+            return this.canManageShared || this.permissions.monitorIDs.includes(Number(id));
+        },
+        /**
+         * Check whether the current account can modify a status page.
+         * @param {number|string} id Status page ID
+         * @returns {boolean} Write permission
+         */
+        canEditStatusPage(id) {
+            return this.canManageShared || this.permissions.statusPageIDs.includes(Number(id));
+        },
         /**
          * Store the newest beat of a monitor and its display status.
          * Called per beat: must stay O(1), thousands of monitors beat every minute.
@@ -168,6 +185,10 @@ export default {
 
             socket.on("setup", () => {
                 this.$router.push("/setup");
+            });
+
+            socket.on("permissions", (permissions) => {
+                this.permissions = permissions;
             });
 
             socket.on("session", (username) => {
@@ -702,6 +723,12 @@ export default {
     },
 
     computed: {
+        isAdmin() {
+            return this.permissions.role === "admin";
+        },
+        canManageShared() {
+            return ["admin", "owner"].includes(this.permissions.role);
+        },
         usernameFirstChar() {
             if (typeof this.username == "string" && this.username.length >= 1) {
                 return this.username.charAt(0).toUpperCase();

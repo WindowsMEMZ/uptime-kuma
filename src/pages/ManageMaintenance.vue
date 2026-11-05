@@ -6,7 +6,7 @@
             </h1>
 
             <div>
-                <router-link to="/add-maintenance" class="btn btn-primary mb-3">
+                <router-link v-if="$root.canManageShared" to="/add-maintenance" class="btn btn-primary mb-3">
                     <font-awesome-icon icon="plus" />
                     {{ $t("Schedule Maintenance") }}
                 </router-link>
@@ -33,7 +33,7 @@
                         </div>
                     </div>
 
-                    <div class="buttons">
+                    <div v-if="$root.canManageShared" class="buttons">
                         <div class="btn-group" role="group">
                             <button
                                 v-if="item.active"

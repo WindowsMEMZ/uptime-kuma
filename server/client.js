@@ -25,6 +25,9 @@ async function sendNotificationList(socket) {
         result.push(notificationObject);
     }
 
+    if (socket.permissions?.role === "member") {
+        result = result.map(({ id, name, active, isDefault }) => ({ id, name, active, isDefault }));
+    }
     io.to(socket.userID).emit("notificationList", result);
 
     timeLogger.print("Send Notification List");
@@ -159,7 +162,11 @@ async function sendProxyList(socket) {
     const list = await R.find("proxy");
     io.to(socket.userID).emit(
         "proxyList",
-        list.map((bean) => bean.export())
+        list.map((bean) =>
+            socket.permissions?.role === "member"
+                ? { id: bean.id, host: bean.host, port: bean.port, protocol: bean.protocol }
+                : bean.export()
+        )
     );
 
     timeLogger.print("Send Proxy List");
@@ -189,7 +196,7 @@ async function sendDockerHostList(socket) {
     let list = await R.find("docker_host");
 
     for (let bean of list) {
-        result.push(bean.toJSON());
+        result.push(socket.permissions?.role === "member" ? { id: bean.id, name: bean.name } : bean.toJSON());
     }
 
     io.to(socket.userID).emit("dockerHostList", result);
@@ -211,7 +218,7 @@ async function sendRemoteBrowserList(socket) {
     let list = await R.find("remote_browser");
 
     for (let bean of list) {
-        result.push(bean.toJSON());
+        result.push(socket.permissions?.role === "member" ? { id: bean.id, name: bean.name } : bean.toJSON());
     }
 
     io.to(socket.userID).emit("remoteBrowserList", result);

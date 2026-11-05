@@ -6,7 +6,7 @@
             </h1>
 
             <div>
-                <router-link to="/add-status-page" class="btn btn-primary mb-3">
+                <router-link v-if="$root.canManageShared" to="/add-status-page" class="btn btn-primary mb-3">
                     <font-awesome-icon icon="plus" />
                     {{ $t("New Status Page") }}
                 </router-link>
@@ -35,6 +35,7 @@
                         </div>
                         <div class="actions">
                             <button
+                                v-if="$root.canEditStatusPage(statusPage.id)"
                                 class="btn btn-danger delete-status-page"
                                 @click.stop.prevent="deleteDialog(statusPage.slug)"
                             >

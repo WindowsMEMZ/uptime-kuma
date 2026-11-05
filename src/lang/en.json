@@ -1678,5 +1678,19 @@
     "incidentLabel-monitoring": "Monitoring",
     "incidentLabel-resolved": "Resolved",
     "Show all progress": "Show all progress ({count})",
-    "Collapse progress": "Collapse progress"
+    "Collapse progress": "Collapse progress",
+    "Accounts": "Accounts",
+    "Account Role": "Role",
+    "Create Account": "Create Account",
+    "Initial Password": "Initial Password",
+    "Edit Permissions": "Edit Permissions",
+    "accountCreatedPassword": "Account {username} created. Save this initial password, then sign in to change it.",
+    "accountUsernameInvalid": "Use 3–30 letters, numbers, underscores, or periods for the username.",
+    "accountUsernameExists": "This username already exists.",
+    "accountRoleFor": "Role for {username}",
+    "accountPermissionsFor": "Permissions for {username}",
+    "accountMemberPermissionsHint": "Select the monitors and status pages this Member can edit.",
+    "accountDeleteConfirm": "Delete account {username}?",
+    "account2FAEnabled": "Enabled",
+    "account2FADisabled": "Disabled"
 }

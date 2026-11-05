@@ -1,7 +1,9 @@
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "../better-auth";
+import { auth, getSessionFromHeaders, getDisableAuthSession } from "../better-auth";
 import { R } from "redbean-node";
+import { Settings } from "../settings";
+import { getPermissions } from "../permissions";
 import { log } from "../../src/util";
 
 // @ts-ignore
@@ -20,6 +22,22 @@ const expiredMsg = "Setup has expired. Please restart the server to try again.";
  */
 export async function createBetterAuthRouter() {
     const betterAuthRouter = express.Router();
+    betterAuthRouter.get("/api/account-permissions", async (req, res) => {
+        allowDevOrigin(req, res);
+        res.setHeader("Cache-Control", "no-store");
+        try {
+            const session = (await Settings.get("disableAuth"))
+                ? await getDisableAuthSession()
+                : await getSessionFromHeaders(req.headers.cookie);
+            if (!session) {
+                res.status(401).json({ ok: false });
+                return;
+            }
+            res.json({ ok: true, permissions: await getPermissions(session.user.id) });
+        } catch {
+            res.status(401).json({ ok: false });
+        }
+    });
     betterAuthRouter.all("/api/auth/*", (req, res, next) => {
         allowDevOrigin(req, res);
 
