@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 // @ts-ignore
 import * as Database from "./database.js";
-import { genSecret, isDevEnv, log } from "../src/util";
+import { appName, genSecret, isDevEnv, log } from "../src/util";
 import { R } from "redbean-node";
 import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
@@ -83,6 +83,7 @@ function createAuthInstance() {
     const authDatabase = Database.createAuthDatabase(Database.dbConfig);
 
     return betterAuth({
+        appName,
         database: authDatabase,
 
         // Just want to silent the warning message

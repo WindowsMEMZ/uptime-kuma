@@ -17,7 +17,7 @@
             <div class="header-toolbar">
                 <router-link to="/dashboard" class="app-brand">
                     <img width="32" height="32" src="/icon.svg" alt="" />
-                    <span class="title">{{ $t("Uptime Kuma") }}</span>
+                    <span class="title">{{ $root.appName }}</span>
                 </router-link>
                 <div class="header-actions">
                     <a

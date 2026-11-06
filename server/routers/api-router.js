@@ -5,7 +5,7 @@ const { R } = require("redbean-node");
 const apicache = require("../utils/response-cache");
 const Monitor = require("../model/monitor");
 const dayjs = require("dayjs");
-const { UP, MAINTENANCE, DOWN, PENDING, flipStatus, log, badgeConstants } = require("../../src/util");
+const { UP, MAINTENANCE, DOWN, PENDING, flipStatus, log, badgeConstants, appName } = require("../../src/util");
 const StatusPage = require("../model/status_page");
 const { UptimeKumaServer, getInfo } = require("../uptime-kuma-server");
 const { emitHeartbeat } = require("../heartbeat-emit");
@@ -245,7 +245,7 @@ function getOpenApiDocument() {
         openApiDocument = createDocument({
             openapi: "3.1.0",
             info: {
-                title: "Uptime Kuma API",
+                title: `${appName} API`,
                 version: checkVersion.version,
                 description: "Alpha. Requires an API key and the `API and MCP` setting to be enabled.",
             },
@@ -341,7 +341,7 @@ async function requireDocsAccess(request, response, next) {
         return;
     }
 
-    sendTextMessage(response, 401, "Log in to Uptime Kuma to view the API documentation.");
+    sendTextMessage(response, 401, `Log in to ${appName} to view the API documentation.`);
 }
 
 openAPIRouter.get("/api/openapi.json", requireApiAccess, (request, response) => {

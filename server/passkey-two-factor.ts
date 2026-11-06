@@ -11,6 +11,7 @@ import {
 } from "@simplewebauthn/server";
 import { z } from "zod";
 import { R } from "redbean-node";
+import { appName } from "../src/util";
 // @ts-ignore
 import { Settings } from "./settings";
 
@@ -192,7 +193,7 @@ export function passkeyTwoFactor(): BetterAuthPlugin {
                     const rp = await relyingParty(ctx);
                     const credentials = await R.knex("user_passkey").where({ user_id: user.id, rp_id: rp.rpID });
                     const options = await generateRegistrationOptions({
-                        rpName: "Uptime Kuma",
+                        rpName: appName,
                         rpID: rp.rpID,
                         userName: user.name,
                         userID: new Uint8Array(Buffer.from(user.id)),

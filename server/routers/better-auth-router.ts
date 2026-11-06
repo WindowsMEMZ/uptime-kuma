@@ -67,7 +67,7 @@ export async function createBetterAuthRouter() {
             try {
                 if (!(await needSetup())) {
                     throw new Error(
-                        "Uptime Kuma has been initialized. If you want to run setup again, please delete the database."
+                        "Uptime Solis has been initialized. If you want to run setup again, please delete the database."
                     );
                 }
 
@@ -124,7 +124,7 @@ export async function hasUser(checkLegacyUser = false) {
 export async function createFirstAdmin(username: string, password: string) {
     if (await hasUser(true)) {
         throw new Error(
-            "Uptime Kuma has been initialized. If you want to run setup again, please delete the database."
+            "Uptime Solis has been initialized. If you want to run setup again, please delete the database."
         );
     }
 

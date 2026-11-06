@@ -23,7 +23,7 @@ export const devOriginList = [
     "http://localhost:3001",
 ];
 
-export const appName = "Uptime Kuma";
+export const appName = "Uptime Solis";
 export const DOWN = 0;
 export const UP = 1;
 export const PENDING = 2;
