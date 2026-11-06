@@ -1840,5 +1840,8 @@
     "passkeyDeleteConfirm": "删除通行密钥 {name}？",
     "passkeyCancelled": "验证已取消。请重试或选择其他方式。",
     "passkeyVerificationFailed": "通行密钥验证失败，请重试。",
-    "Back to Sign In": "返回登录"
+    "Back to Sign In": "返回登录",
+    "Skip to content": "跳转到内容",
+    "Main navigation": "主导航",
+    "Account": "账户"
 }

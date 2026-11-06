@@ -6,6 +6,7 @@ import "vue-toastification/dist/index.css";
 import App from "./App.vue";
 import "./assets/app.scss";
 import "./assets/vue-datepicker.scss";
+import "./assets/internal.scss";
 import { i18n } from "./i18n";
 import { FontAwesomeIcon } from "./icon.js";
 import datetime from "./mixins/datetime";

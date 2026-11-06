@@ -37,6 +37,12 @@ export default {
         },
     },
     watch: {
+        "$route.meta.internal": {
+            immediate: true,
+            handler(internal) {
+                document.body.classList.toggle("internal-page", Boolean(internal));
+            },
+        },
         progress(value) {
             this.progressController.update(value);
         },

@@ -1710,5 +1710,8 @@
     "passkeyDeleteConfirm": "Delete passkey {name}?",
     "passkeyCancelled": "Verification cancelled. Try again or choose another method.",
     "passkeyVerificationFailed": "Passkey verification failed. Please try again.",
-    "Back to Sign In": "Back to Sign In"
+    "Back to Sign In": "Back to Sign In",
+    "Skip to content": "Skip to content",
+    "Main navigation": "Main navigation",
+    "Account": "Account"
 }

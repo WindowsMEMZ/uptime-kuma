@@ -44,6 +44,7 @@ const routes = [
         // If it is "", it overrides the "/" unexpectedly
         // Give a random name to solve the problem.
         path: "/empty",
+        meta: { internal: true },
         component: Layout,
         children: [
             {
@@ -172,10 +173,12 @@ const routes = [
     },
     {
         path: "/setup",
+        meta: { internal: true },
         component: Setup,
     },
     {
         path: "/setup-database",
+        meta: { internal: true },
         component: SetupDatabase,
     },
     {
@@ -192,6 +195,7 @@ const routes = [
     },
     {
         path: "/:pathMatch(.*)*",
+        meta: { internal: true },
         component: NotFound,
     },
 ];

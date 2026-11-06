@@ -1,6 +1,7 @@
 <template>
     <div class="form-container">
         <div class="form">
+            <h1 class="login-heading">{{ $t("Login") }}</h1>
             <form aria-label="Login Form" class="pt-3" @submit.prevent="submit">
                 <div v-if="!tokenRequired" class="form-floating">
                     <input

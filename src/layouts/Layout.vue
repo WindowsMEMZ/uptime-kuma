@@ -12,49 +12,36 @@
             </div>
         </div>
 
-        <!-- Desktop header -->
-        <header v-if="!$root.isMobile" class="d-flex flex-wrap justify-content-center py-3 mb-3 border-bottom">
-            <router-link
-                to="/dashboard"
-                class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none"
-            >
-                <object class="bi me-2 ms-4" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title">{{ $t("Uptime Kuma") }}</span>
-            </router-link>
-
-            <a
-                v-if="hasNewVersion"
-                target="_blank"
-                href="https://github.com/louislam/uptime-kuma/releases"
-                class="btn btn-primary me-3"
-            >
-                <font-awesome-icon icon="arrow-alt-circle-up" />
-                {{ $t("New Update") }}
-            </a>
-
-            <ul class="nav nav-pills">
-                <li v-if="$root.loggedIn" class="nav-item me-2">
-                    <router-link to="/manage-status-page" class="nav-link">
-                        <font-awesome-icon icon="stream" />
-                        {{ $t("Status Pages") }}
-                    </router-link>
-                </li>
-                <li v-if="$root.loggedIn" class="nav-item me-2">
-                    <router-link to="/dashboard" class="nav-link">
-                        <font-awesome-icon icon="tachometer-alt" />
-                        {{ $t("Dashboard") }}
-                    </router-link>
-                </li>
-                <li v-if="$root.loggedIn" class="nav-item">
-                    <div class="dropdown dropdown-profile-pic">
-                        <div class="nav-link" data-bs-toggle="dropdown">
-                            <div class="profile-pic">{{ $root.usernameFirstChar }}</div>
+        <a class="skip-link" href="#main-content">{{ $t("Skip to content") }}</a>
+        <header class="app-header">
+            <div class="header-toolbar">
+                <router-link to="/dashboard" class="app-brand">
+                    <img width="32" height="32" src="/icon.svg" alt="" />
+                    <span class="title">{{ $t("Uptime Kuma") }}</span>
+                </router-link>
+                <div class="header-actions">
+                    <a
+                        v-if="hasNewVersion"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href="https://github.com/louislam/uptime-kuma/releases"
+                        class="btn btn-normal btn-sm"
+                    >
+                        <font-awesome-icon icon="arrow-alt-circle-up" />
+                        {{ $t("New Update") }}
+                    </a>
+                    <div v-if="$root.loggedIn" class="dropdown dropdown-profile-pic">
+                        <button
+                            class="profile-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            :aria-label="$t('Account')"
+                            aria-expanded="false"
+                        >
+                            <span class="profile-pic">{{ $root.usernameFirstChar }}</span>
                             <font-awesome-icon icon="angle-down" />
-                        </div>
-
-                        <!-- Header's Dropdown Menu -->
-                        <ul class="dropdown-menu">
-                            <!-- Username -->
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
                             <li>
                                 <i18n-t
                                     v-if="$root.username != null"
@@ -64,58 +51,21 @@
                                 >
                                     <strong>{{ $root.username }}</strong>
                                 </i18n-t>
-                                <span v-if="$root.username == null" class="dropdown-item-text">
-                                    {{ $t("signedInDispDisabled") }}
-                                </span>
+                                <span v-else class="dropdown-item-text">{{ $t("signedInDispDisabled") }}</span>
                             </li>
-
                             <li><hr class="dropdown-divider" /></li>
-
-                            <!-- Functions -->
-                            <li>
-                                <router-link
-                                    to="/incidents"
-                                    class="dropdown-item"
-                                    :class="{ active: $route.path.startsWith('/incidents') }"
-                                >
-                                    <font-awesome-icon icon="info-circle" />
-                                    {{ $t("Incidents") }}
-                                </router-link>
-                            </li>
-                            <li>
-                                <router-link
-                                    to="/maintenance"
-                                    class="dropdown-item"
-                                    :class="{ active: $route.path.includes('manage-maintenance') }"
-                                >
-                                    <font-awesome-icon icon="wrench" />
-                                    {{ $t("Maintenance") }}
-                                </router-link>
-                            </li>
-
-                            <li>
-                                <router-link
-                                    :to="$root.canManageShared ? '/settings/general' : '/settings/security'"
-                                    class="dropdown-item"
-                                    :class="{ active: $route.path.includes('settings') }"
-                                >
-                                    <font-awesome-icon icon="cog" />
-                                    {{ $t("Settings") }}
-                                </router-link>
-                            </li>
-
                             <li>
                                 <a
                                     href="https://github.com/louislam/uptime-kuma/wiki"
                                     class="dropdown-item"
                                     target="_blank"
+                                    rel="noopener noreferrer"
                                 >
                                     <font-awesome-icon icon="info-circle" />
                                     {{ $t("Help") }}
                                 </a>
                             </li>
-
-                            <li v-if="$root.loggedIn">
+                            <li>
                                 <button class="dropdown-item" @click="$root.logout">
                                     <font-awesome-icon icon="sign-out-alt" />
                                     {{ $t("Logout") }}
@@ -123,19 +73,41 @@
                             </li>
                         </ul>
                     </div>
-                </li>
-            </ul>
+                </div>
+            </div>
+            <nav v-if="$root.loggedIn && !$root.isMobile" class="primary-nav" :aria-label="$t('Main navigation')">
+                <router-link to="/dashboard" class="nav-link" :class="{ active: isMonitorRoute }">
+                    <font-awesome-icon icon="tachometer-alt" />
+                    {{ $t("Dashboard") }}
+                </router-link>
+                <router-link
+                    to="/manage-status-page"
+                    class="nav-link"
+                    :class="{ active: $route.path === '/add-status-page' }"
+                >
+                    <font-awesome-icon icon="stream" />
+                    {{ $t("Status Pages") }}
+                </router-link>
+                <router-link to="/incidents" class="nav-link">
+                    <font-awesome-icon icon="info-circle" />
+                    {{ $t("Incidents") }}
+                </router-link>
+                <router-link to="/maintenance" class="nav-link" :class="{ active: $route.path === '/add-maintenance' }">
+                    <font-awesome-icon icon="wrench" />
+                    {{ $t("Maintenance") }}
+                </router-link>
+                <router-link
+                    :to="$root.canManageShared ? '/settings/general' : '/settings/security'"
+                    class="nav-link"
+                    :class="{ active: $route.path.startsWith('/settings') }"
+                >
+                    <font-awesome-icon icon="cog" />
+                    {{ $t("Settings") }}
+                </router-link>
+            </nav>
         </header>
 
-        <!-- Mobile header -->
-        <header v-else class="d-flex flex-wrap justify-content-center pt-2 pb-2 mb-3">
-            <router-link to="/dashboard" class="d-flex align-items-center text-dark text-decoration-none">
-                <object class="bi" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title ms-2">Uptime Kuma</span>
-            </router-link>
-        </header>
-
-        <main>
+        <main id="main-content" tabindex="-1">
             <router-view v-if="$root.loggedIn" />
             <Login v-if="!$root.loggedIn && $root.allowLoginDialog" />
         </main>
@@ -197,10 +169,14 @@ export default {
     computed: {
         // Theme or Mobile
         classes() {
-            const classes = {};
+            const classes = { "internal-app": true };
             classes[this.$root.theme] = true;
             classes["mobile"] = this.$root.isMobile;
             return classes;
+        },
+
+        isMonitorRoute() {
+            return /^\/(dashboard|add|edit|clone|list)(\/|$)/.test(this.$route.path);
         },
 
         hasNewVersion() {
@@ -248,195 +224,161 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "../assets/vars.scss";
-
-.nav-link {
-    &:hover {
-        background-color: $primary;
-        color: #fff;
-
-        .dark & {
-            background-color: $primary;
-            color: #000;
-        }
-
-        &.active {
-            background-color: $highlight;
-        }
-    }
-
-    &.status-page {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
+.app-header {
+    background: var(--app-canvas-subtle);
+    border-bottom: 1px solid var(--app-border);
+    margin-bottom: 24px;
 }
 
-.bottom-nav {
-    z-index: 1000;
-    position: fixed;
-    bottom: 0;
-    height: calc(60px + env(safe-area-inset-bottom));
-    width: 100%;
-    left: 0;
-    background-color: #fff;
-    box-shadow:
-        0 15px 47px 0 rgba(0, 0, 0, 0.05),
-        0 5px 14px 0 rgba(0, 0, 0, 0.05);
-    text-align: center;
-    white-space: nowrap;
-    padding: 0 10px env(safe-area-inset-bottom);
+.header-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 64px;
+    padding: 16px 32px;
+}
 
-    a {
-        text-align: center;
-        width: 25%;
-        display: inline-block;
-        height: 100%;
-        padding: 8px 10px 0;
-        font-size: 13px;
-        color: #c1c1c1;
-        overflow: hidden;
-        text-decoration: none;
+.app-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 600;
+}
 
-        &.router-link-exact-active,
-        &.active {
-            color: $primary;
-            font-weight: bold;
+.header-actions,
+.profile-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-toggle {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.profile-pic {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    background: var(--app-selected);
+    color: var(--app-fg);
+    font-weight: 600;
+}
+
+.primary-nav {
+    display: flex;
+    gap: 8px;
+    padding: 0 24px;
+    overflow-x: auto;
+
+    .nav-link {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        padding: 12px;
+        border-radius: 6px 6px 0 0;
+
+        &.active::after {
+            position: absolute;
+            content: "";
+            height: 2px;
+            background: #fd8c73;
+            inset: auto 8px -1px;
         }
 
-        div {
-            font-size: 20px;
+        &.active {
+            font-weight: 600;
         }
     }
 }
 
 main {
-    min-height: calc(100vh - 160px);
+    min-height: calc(100vh - 170px);
+    outline: none;
 }
 
-.title {
-    font-weight: bold;
-}
+.bottom-nav {
+    display: flex;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 1000;
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--app-canvas);
+    border-top: 1px solid var(--app-border);
 
-.nav {
-    margin-right: 25px;
+    .nav-link {
+        flex: 1;
+        padding: 8px 4px;
+        text-align: center;
+        font-size: 12px;
+
+        div {
+            font-size: 18px;
+        }
+
+        &.active {
+            box-shadow: inset 0 2px #fd8c73;
+            font-weight: 600;
+        }
+    }
 }
 
 .lost-connection {
-    padding: 5px;
-    background-color: crimson;
-    color: white;
     position: fixed;
     width: 100%;
+    padding: 8px;
+    background: #cf222e;
+    color: white;
     z-index: 99999;
 }
 
-// Profile Pic Button with Dropdown
-.dropdown-profile-pic {
-    user-select: none;
+.skip-link {
+    position: fixed;
+    top: -100px;
+    left: 16px;
+    z-index: 10000;
+    padding: 8px 16px;
+    background: var(--app-canvas);
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
 
-    .nav-link {
-        cursor: pointer;
-        display: flex;
-        gap: 6px;
-        align-items: center;
-        background-color: rgba(200, 200, 200, 0.2);
-        padding: 0.5rem 0.8rem;
-
-        &:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-    }
-
-    .dropdown-menu {
-        transition: all 0.2s;
-        padding-left: 0;
-        padding-bottom: 0;
-        margin-top: 8px !important;
-        border-radius: 16px;
-        overflow: hidden;
-
-        .dropdown-divider {
-            margin: 0;
-            border-top: 1px solid rgba(0, 0, 0, 0.4);
-            background-color: transparent;
-        }
-
-        .dropdown-item-text {
-            font-size: 14px;
-            padding-bottom: 0.7rem;
-        }
-
-        .dropdown-item {
-            padding: 0.7rem 1rem;
-        }
-
-        .dark & {
-            background-color: $dark-bg;
-            color: $dark-font-color;
-            border-color: $dark-border-color;
-
-            .dropdown-item {
-                color: $dark-font-color;
-
-                &.active {
-                    color: $dark-font-color2;
-                    background-color: $highlight !important;
-                }
-
-                &:hover {
-                    background-color: $dark-bg2;
-                }
-            }
-        }
-    }
-
-    .profile-pic {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        background-color: $primary;
-        width: 24px;
-        height: 24px;
-        margin-right: 5px;
-        border-radius: 50rem;
-        font-weight: bold;
-        font-size: 10px;
-    }
-}
-
-.dark {
-    header {
-        background-color: $dark-header-bg;
-        border-bottom-color: $dark-header-bg !important;
-
-        span {
-            color: #f0f6fc;
-        }
-    }
-
-    .bottom-nav {
-        background-color: $dark-bg;
+    &:focus {
+        top: 8px;
     }
 }
 
 .clear-all-toast-btn {
     position: fixed;
-    right: 1em;
-    bottom: 1em;
-    font-size: 1.2em;
-    padding: 9px 15px;
-    width: 48px;
-    box-shadow: 2px 2px 30px rgba(0, 0, 0, 0.2);
+    right: 16px;
+    bottom: 16px;
     z-index: 100;
-
-    .dark & {
-        box-shadow: 2px 2px 30px rgba(0, 0, 0, 0.5);
-    }
 }
 
-@media (max-width: 770px) {
+@media (max-width: 767px) {
+    .header-toolbar {
+        min-height: 56px;
+        padding: 12px 16px;
+    }
+
+    .app-header {
+        margin-bottom: 16px;
+    }
+
     .clear-all-toast-btn {
-        bottom: 72px;
+        bottom: 76px;
     }
 }
 </style>
