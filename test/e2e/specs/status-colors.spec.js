@@ -88,7 +88,7 @@ test("shares saved palettes with internal pages and every public page, including
         await page.goto("./settings/appearance");
         const form = page.getByTestId("status-colors-form");
         await expect(form.locator('input[type="color"]')).toHaveCount(12);
-        await page.locator('label[for="btncheck1"]').click();
+        await page.getByLabel("Theme", { exact: true }).selectOption("light");
         const palettes = {
             light: {
                 up: "#123456",
@@ -151,7 +151,7 @@ test("shares saved palettes with internal pages and every public page, including
                 .toContain(palettes.dark[status]);
         }
 
-        await page.locator('label[for="btncheck2"]').click();
+        await page.getByLabel("Theme", { exact: true }).selectOption("dark");
         await page.setViewportSize({ width: 390, height: 844 });
         await page.screenshot({ path: test.info().outputPath("status-colors-mobile.png"), fullPage: true });
         await page.setViewportSize({ width: 1280, height: 900 });

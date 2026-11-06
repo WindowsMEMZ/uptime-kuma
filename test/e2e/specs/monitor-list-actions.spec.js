@@ -189,12 +189,26 @@ test.describe("Monitor list actions", () => {
         await expect(list.locator(".heartbeat-canvas").first()).toBeVisible();
 
         await page.goto("./settings/appearance");
-        await page.locator('label[for="btncheck6"]').click();
+        await expect(page.getByLabel("Theme - Heartbeat Bar", { exact: true })).toHaveValue("normal");
+        await page.getByLabel("Theme", { exact: true }).selectOption("dark");
+        await page.getByLabel("Theme - Heartbeat Bar", { exact: true }).selectOption("none");
+        await page.locator("#elapsed-time-style").selectOption("with-line");
+        await page.reload();
+        await expect(page.getByLabel("Theme", { exact: true })).toHaveValue("dark");
+        await expect(page.getByLabel("Theme - Heartbeat Bar", { exact: true })).toHaveValue("none");
+        await expect(page.locator("#elapsed-time-style")).toHaveValue("with-line");
+        await expect(page.locator("body")).toHaveClass(/dark/);
         list = await openDashboard(page);
         await expect(list.locator(".heartbeat-canvas")).toHaveCount(0);
 
         await page.goto("./settings/appearance");
-        await page.locator('label[for="btncheck4"]').click();
+        await page.getByLabel("Theme - Heartbeat Bar", { exact: true }).selectOption("normal");
+        await page.getByLabel("Theme", { exact: true }).selectOption("auto");
+        await page.locator("#elapsed-time-style").selectOption("none");
+        await page.reload();
+        await expect(page.getByLabel("Theme", { exact: true })).toHaveValue("auto");
+        await expect(page.getByLabel("Theme - Heartbeat Bar", { exact: true })).toHaveValue("normal");
+        await expect(page.locator("#elapsed-time-style")).toHaveValue("none");
         list = await openDashboard(page);
         await expect(list.locator(".heartbeat-canvas").first()).toBeVisible();
     });
