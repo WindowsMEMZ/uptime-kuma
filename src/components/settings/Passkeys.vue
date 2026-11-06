@@ -22,19 +22,40 @@
                 </button>
             </li>
         </ul>
-        <form @submit.prevent="add">
+        <form name="account-verification" @submit.prevent="add">
             <div class="mb-3">
-                <label for="passkey-name" class="form-label">{{ $t("Passkey Name") }}</label>
-                <input id="passkey-name" v-model="name" class="form-control" maxlength="100" required />
+                <label for="passkey-username" class="form-label">{{ $t("Username") }}</label>
+                <input
+                    id="passkey-username"
+                    :value="$root.username"
+                    name="username"
+                    type="text"
+                    class="form-control"
+                    autocomplete="username"
+                    readonly
+                />
             </div>
             <div class="mb-3">
                 <label for="passkey-password" class="form-label">{{ $t("Current Password") }}</label>
                 <input
                     id="passkey-password"
                     v-model="password"
+                    name="password"
                     type="password"
                     class="form-control"
                     autocomplete="current-password"
+                    required
+                />
+            </div>
+            <div class="mb-3">
+                <label for="passkey-name" class="form-label">{{ $t("Passkey Name") }}</label>
+                <input
+                    id="passkey-name"
+                    v-model="name"
+                    name="credential-label"
+                    class="form-control"
+                    autocomplete="off"
+                    maxlength="100"
                     required
                 />
             </div>
