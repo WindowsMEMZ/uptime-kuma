@@ -1843,5 +1843,8 @@
     "Back to Sign In": "返回登录",
     "Skip to content": "跳转到内容",
     "Main navigation": "主导航",
-    "Account": "账户"
+    "Account": "账户",
+    "Reset column widths": "重置列宽",
+    "Resize event column": "调整“{column}”列宽",
+    "Drag to resize column": "拖动调整列宽，双击重置。"
 }

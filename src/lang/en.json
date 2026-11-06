@@ -1713,5 +1713,8 @@
     "Back to Sign In": "Back to Sign In",
     "Skip to content": "Skip to content",
     "Main navigation": "Main navigation",
-    "Account": "Account"
+    "Account": "Account",
+    "Reset column widths": "Reset column widths",
+    "Resize event column": "Resize {column} column",
+    "Drag to resize column": "Drag to resize. Double-click to reset."
 }
