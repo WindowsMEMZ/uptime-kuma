@@ -3460,6 +3460,7 @@ export default {
             },
             domainExpiryUnsupportedReason: null,
             checkDomainDebounce: null,
+            domainCheckVersion: 0,
             acceptedStatusCodeOptions: [],
             acceptedWebsocketCodeOptions: [],
             dnsresolvetypeOptions: [],
@@ -4099,6 +4100,10 @@ message HealthCheckResponse {
         this.globalpingdnsresolvetypeoptions = globalpingdnsresolvetypeoptions;
         this.kafkaSaslMechanismOptions = kafkaSaslMechanismOptions;
     },
+    beforeUnmount() {
+        clearTimeout(this.checkDomainDebounce);
+        this.domainCheckVersion++;
+    },
     methods: {
         loadPM2ProcessList() {
             this.pm2ProcessLoading = true;
@@ -4637,7 +4642,7 @@ message HealthCheckResponse {
         // Check Domain
         // Do nothing if not checked
         checkDomain() {
-            console.log("checkDomain called");
+            const version = ++this.domainCheckVersion;
             if (this.checkDomainDebounce != null) {
                 clearTimeout(this.checkDomainDebounce);
             }
@@ -4648,6 +4653,7 @@ message HealthCheckResponse {
             }
 
             this.checkDomainDebounce = setTimeout(() => {
+                this.checkDomainDebounce = null;
                 const { type, url, hostname, grpcUrl } = this.monitor;
                 const data = {
                     type,
@@ -4657,7 +4663,9 @@ message HealthCheckResponse {
                 };
 
                 this.$root.getSocket().emit("checkDomain", data, (res) => {
-                    console.log(data);
+                    if (version !== this.domainCheckVersion) {
+                        return;
+                    }
                     if (!res.ok) {
                         this.domainExpiryUnsupportedReason = res.msgi18n ? this.$t(res.msg, res.meta) : res.msg;
                     } else {

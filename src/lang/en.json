@@ -1716,5 +1716,8 @@
     "Account": "Account",
     "Reset column widths": "Reset column widths",
     "Resize event column": "Resize {column} column",
-    "Drag to resize column": "Drag to resize. Double-click to reset."
+    "Drag to resize column": "Drag to resize. Double-click to reset.",
+    "Monitor navigation": "Monitor navigation",
+    "Monitor list": "Monitors",
+    "Overview": "Overview"
 }

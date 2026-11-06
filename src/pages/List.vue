@@ -1,6 +1,9 @@
 <template>
     <transition name="slide-fade" appear>
-        <MonitorList :scrollbar="true" />
+        <div class="monitor-list-page">
+            <h1 class="mb-3">{{ $t("Monitor list") }}</h1>
+            <MonitorList :scrollbar="true" />
+        </div>
     </transition>
 </template>
 
@@ -25,11 +28,3 @@ export default {
     },
 };
 </script>
-
-<style lang="scss" scoped>
-@import "../assets/vars";
-
-.shadow-box {
-    padding: 20px;
-}
-</style>

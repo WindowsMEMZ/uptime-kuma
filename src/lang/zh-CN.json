@@ -1846,5 +1846,8 @@
     "Account": "账户",
     "Reset column widths": "重置列宽",
     "Resize event column": "调整“{column}”列宽",
-    "Drag to resize column": "拖动调整列宽，双击重置。"
+    "Drag to resize column": "拖动调整列宽，双击重置。",
+    "Monitor navigation": "监控导航",
+    "Monitor list": "监控项",
+    "Overview": "概览"
 }

@@ -1,23 +1,20 @@
 <template>
     <div>
-        <div v-if="$root.isMobile" class="shadow-box mb-3">
-            <router-link to="/manage-status-page" class="nav-link">
-                <font-awesome-icon icon="stream" />
-                {{ $t("Status Pages") }}
-            </router-link>
-            <router-link to="/incidents" class="nav-link">
-                <font-awesome-icon icon="info-circle" />
-                {{ $t("Incidents") }}
-            </router-link>
-            <router-link to="/maintenance" class="nav-link">
-                <font-awesome-icon icon="wrench" />
-                {{ $t("Maintenance") }}
-            </router-link>
-        </div>
-
         <h1 v-show="show" class="mb-3">
             {{ $t("Settings") }}
         </h1>
+
+        <div v-if="$root.isMobile && currentPage" class="mb-3">
+            <label for="settings-section" class="visually-hidden">{{ $t("Settings") }}</label>
+            <select
+                id="settings-section"
+                class="form-select"
+                :value="currentPage"
+                @change="$router.push(`/settings/${$event.target.value}`)"
+            >
+                <option v-for="(item, key) in availableSubMenus" :key="key" :value="key">{{ item.title }}</option>
+            </select>
+        </div>
 
         <div class="shadow-box shadow-box-settings">
             <div class="row">

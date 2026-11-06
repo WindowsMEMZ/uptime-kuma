@@ -1,5 +1,22 @@
 <template>
     <div class="container-fluid dashboard-layout" :class="{ 'workspace-layout': !showMonitorSidebar }">
+        <nav v-if="$root.isMobile && isMonitorRoute" class="mobile-monitor-nav" :aria-label="$t('Monitor navigation')">
+            <router-link to="/dashboard" class="nav-link" :class="{ active: $route.path.startsWith('/dashboard') }">
+                {{ $t("Overview") }}
+            </router-link>
+            <router-link to="/list" class="nav-link" :class="{ active: $route.path === '/list' }">
+                {{ $t("Monitor list") }}
+            </router-link>
+            <router-link
+                v-if="$root.canManageShared"
+                to="/add"
+                class="btn btn-normal btn-sm ms-auto"
+                :aria-label="$t('Add New Monitor')"
+            >
+                <font-awesome-icon icon="plus" />
+                {{ $t("Add") }}
+            </router-link>
+        </nav>
         <div class="row dashboard-columns" :class="{ 'with-monitor-sidebar': showMonitorSidebar }">
             <div v-if="showMonitorSidebar" class="monitor-sidebar">
                 <div>
@@ -32,8 +49,11 @@ export default {
         };
     },
     computed: {
+        isMonitorRoute() {
+            return /^\/(dashboard|add|edit|clone|list)(\/|$)/.test(this.$route.path);
+        },
         showMonitorSidebar() {
-            return !this.$root.isMobile && /^\/(dashboard|add|edit|clone|list)(\/|$)/.test(this.$route.path);
+            return !this.$root.isMobile && this.isMonitorRoute;
         },
     },
     mounted() {
@@ -68,6 +88,25 @@ export default {
 .dashboard-content {
     min-width: 0;
     padding: 0;
+}
+
+.mobile-monitor-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--app-border);
+
+    .nav-link {
+        padding: 6px 10px;
+        border-radius: 6px;
+
+        &.active {
+            background: var(--app-hover);
+            font-weight: 600;
+        }
+    }
 }
 
 @media (max-width: 1100px) {

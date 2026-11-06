@@ -25,10 +25,12 @@
                         target="_blank"
                         rel="noopener noreferrer"
                         href="https://github.com/louislam/uptime-kuma/releases"
-                        class="btn btn-normal btn-sm"
+                        class="btn btn-normal btn-sm header-update"
+                        :aria-label="$t('New Update')"
+                        :title="$t('New Update')"
                     >
                         <font-awesome-icon icon="arrow-alt-circle-up" />
-                        {{ $t("New Update") }}
+                        <span class="update-label">{{ $t("New Update") }}</span>
                     </a>
                     <div v-if="$root.loggedIn" class="dropdown dropdown-profile-pic">
                         <button
@@ -39,7 +41,7 @@
                             aria-expanded="false"
                         >
                             <span class="profile-pic">{{ $root.usernameFirstChar }}</span>
-                            <font-awesome-icon icon="angle-down" />
+                            <font-awesome-icon icon="angle-down" class="profile-chevron" />
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li>
@@ -75,7 +77,7 @@
                     </div>
                 </div>
             </div>
-            <nav v-if="$root.loggedIn && !$root.isMobile" class="primary-nav" :aria-label="$t('Main navigation')">
+            <nav v-if="$root.loggedIn" ref="primaryNavigation" class="primary-nav" :aria-label="$t('Main navigation')">
                 <router-link to="/dashboard" class="nav-link" :class="{ active: isMonitorRoute }">
                     <font-awesome-icon icon="tachometer-alt" />
                     {{ $t("Dashboard") }}
@@ -88,16 +90,26 @@
                     <font-awesome-icon icon="stream" />
                     {{ $t("Status Pages") }}
                 </router-link>
-                <router-link to="/incidents" class="nav-link">
+                <router-link to="/incidents" class="nav-link" :class="{ active: $route.path.startsWith('/incidents') }">
                     <font-awesome-icon icon="info-circle" />
                     {{ $t("Incidents") }}
                 </router-link>
-                <router-link to="/maintenance" class="nav-link" :class="{ active: $route.path === '/add-maintenance' }">
+                <router-link
+                    to="/maintenance"
+                    class="nav-link"
+                    :class="{ active: /^\/(maintenance|add-maintenance)(\/|$)/.test($route.path) }"
+                >
                     <font-awesome-icon icon="wrench" />
                     {{ $t("Maintenance") }}
                 </router-link>
                 <router-link
-                    :to="$root.canManageShared ? '/settings/general' : '/settings/security'"
+                    :to="
+                        $root.isMobile
+                            ? '/settings'
+                            : $root.canManageShared
+                              ? '/settings/general'
+                              : '/settings/security'
+                    "
                     class="nav-link"
                     :class="{ active: $route.path.startsWith('/settings') }"
                 >
@@ -111,30 +123,6 @@
             <router-view v-if="$root.loggedIn" />
             <Login v-if="!$root.loggedIn && $root.allowLoginDialog" />
         </main>
-
-        <!-- Mobile Only -->
-        <div v-if="$root.isMobile" style="width: 100%; height: calc(60px + env(safe-area-inset-bottom))" />
-        <nav v-if="$root.isMobile && $root.loggedIn" class="bottom-nav">
-            <router-link to="/dashboard" class="nav-link">
-                <div><font-awesome-icon icon="tachometer-alt" /></div>
-                {{ $t("Home") }}
-            </router-link>
-
-            <router-link to="/list" class="nav-link">
-                <div><font-awesome-icon icon="list" /></div>
-                {{ $t("List") }}
-            </router-link>
-
-            <router-link v-if="$root.canManageShared" to="/add" class="nav-link">
-                <div><font-awesome-icon icon="plus" /></div>
-                {{ $t("Add") }}
-            </router-link>
-
-            <router-link to="/settings" class="nav-link">
-                <div><font-awesome-icon icon="cog" /></div>
-                {{ $t("Settings") }}
-            </router-link>
-        </nav>
 
         <button
             v-if="numActiveToasts != 0"
@@ -188,9 +176,20 @@ export default {
         },
     },
 
-    watch: {},
+    watch: {
+        "$route.fullPath"() {
+            this.$nextTick(this.scrollActiveNavigation);
+        },
+        "$root.loggedIn"() {
+            this.$nextTick(this.scrollActiveNavigation);
+        },
+        "$root.windowWidth"() {
+            this.$nextTick(this.scrollActiveNavigation);
+        },
+    },
 
     mounted() {
+        this.$nextTick(this.scrollActiveNavigation);
         this.toastContainer = document.querySelector(".bottom-right.toast-container");
 
         // Watch the number of active toasts
@@ -212,6 +211,20 @@ export default {
     },
 
     methods: {
+        scrollActiveNavigation() {
+            const navigation = this.$refs.primaryNavigation;
+            const active = navigation?.querySelector(".nav-link.active");
+            if (!this.$root.isMobile || !active) {
+                return;
+            }
+            const bounds = navigation.getBoundingClientRect();
+            const item = active.getBoundingClientRect();
+            if (item.left < bounds.left) {
+                navigation.scrollLeft += item.left - bounds.left - 12;
+            } else if (item.right > bounds.right) {
+                navigation.scrollLeft += item.right - bounds.right + 12;
+            }
+        },
         /**
          * Clear all toast notifications.
          * @returns {void}
@@ -306,34 +319,8 @@ export default {
 
 main {
     min-height: calc(100vh - 170px);
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
     outline: none;
-}
-
-.bottom-nav {
-    display: flex;
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 1000;
-    height: calc(60px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--app-canvas);
-    border-top: 1px solid var(--app-border);
-
-    .nav-link {
-        flex: 1;
-        padding: 8px 4px;
-        text-align: center;
-        font-size: 12px;
-
-        div {
-            font-size: 18px;
-        }
-
-        &.active {
-            box-shadow: inset 0 2px #fd8c73;
-            font-weight: 600;
-        }
-    }
 }
 
 .lost-connection {
@@ -370,15 +357,52 @@ main {
 @media (max-width: 767px) {
     .header-toolbar {
         min-height: 56px;
-        padding: 12px 16px;
+        gap: 8px;
+        padding: max(12px, env(safe-area-inset-top)) 16px 12px;
     }
 
     .app-header {
         margin-bottom: 16px;
     }
 
-    .clear-all-toast-btn {
-        bottom: 76px;
+    .header-actions {
+        gap: 8px;
+    }
+
+    .app-brand {
+        gap: 8px;
+        font-size: 15px;
+        white-space: nowrap;
+    }
+
+    .profile-chevron,
+    .update-label {
+        display: none;
+    }
+
+    .header-update {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+    }
+
+    .primary-nav {
+        gap: 4px;
+        padding: 0 8px;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-link {
+            gap: 6px;
+            padding: 12px 10px;
+            white-space: nowrap;
+        }
     }
 }
 </style>
